@@ -1,4 +1,4 @@
-import AgoraRTC from "./AgoraRTC_N-4.2.1.js"
+import AgoraRTC from "agora-rtc-sdk-ng"
 
 import "bootstrap/dist/js/bootstrap.bundle.min.js"
 import "jquery/dist/jquery.slim.min.js"
