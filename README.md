@@ -7,12 +7,19 @@ Switch to any of the following branch -
 * rtc
 * live
 
-## Installation
+## Default Instructions
 
-* ```npm ci```
+* Installation
+    ```
+    npm ci
+    ```
 
-## Hot Reload
-* ```npm run start```
+* Hot Reload
+    ```
+    npm run start
+    ```
 
-## Build
-* ```npm run build```
+* Build
+    ```
+    npm run build
+    ```
