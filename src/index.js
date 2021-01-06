@@ -23,6 +23,7 @@ let userId = null
 const appIdInp = document.getElementById("appid")
 const tokenInp = document.getElementById("token")
 const channelInp = document.getElementById("channel")
+const fullNmInp = document.getElementById("full-name")
 const form = document.getElementById("join-form")
 const joinBtn = document.getElementById("join")
 const leaveBtn = document.getElementById("leave")
@@ -49,11 +50,15 @@ function onInit() {
     if (token)
         options = JSON.parse(decodeURIComponent(token))
 
-    if (options.appid && options.channelName && options.token) {
+    /**
+     * when you create project in console. You have the option to authenticate using appid  or appid + token.
+     * In case you choose appid only then token can be null
+     */
+    if (options.appid && options.channelName) {
         appIdInp.value = options.appid
         tokenInp.value = options.token
         channelInp.value = options.channelName
-        onSubmit()
+        // onSubmit()
     }
 }
 onInit()
@@ -61,7 +66,7 @@ onInit()
 function onSubmit() {
     joinBtn.disabled = true
     options.appid = appIdInp.value
-    options.token = tokenInp.value
+    options.token = tokenInp.value ? tokenInp.value : null
     options.channelName = channelInp.value;
     (async () => {
         try {
@@ -110,7 +115,7 @@ async function join() {
     // join a channel and create local tracks, we can use Promise.all to run them concurrently
     [userId, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all([
         // join the channel
-        client.join(...Object.values(options)),
+        client.join(...Object.values(options), fullNmInp.value ? fullNmInp.value : null),
         // create local tracks, using microphone and camera
         AgoraRTC.createMicrophoneAudioTrack(),
         AgoraRTC.createCameraVideoTrack()
