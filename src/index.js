@@ -4,6 +4,7 @@ import "bootstrap/dist/js/bootstrap.bundle.min.js"
 import "jquery/dist/jquery.slim.min.js"
 import 'bootstrap/dist/css/bootstrap.min.css'
 import "./index.css"
+import { CLIENT_ROLES, generateUserId, decodeUserIdRndNum, decodeUserIdName } from "./helper"
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
@@ -47,7 +48,8 @@ function onInit() {
     // originally this was the url form : `index.html?appid=${options.appid}&channel=${options.channelName}&token=${options.token}`
     const urlParams = new URL(location.href).searchParams;
     const token = urlParams.get("token")
-    if (token)
+
+    if (token) {
         options = JSON.parse(decodeURIComponent(token))
 
     /**
@@ -60,6 +62,9 @@ function onInit() {
         channelInp.value = options.channelName
         // onSubmit()
     }
+}
+
+    joinBtn.disabled = false
 }
 onInit()
 
@@ -115,35 +120,39 @@ async function join() {
     // join a channel and create local tracks, we can use Promise.all to run them concurrently
     [userId, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all([
         // join the channel
-        client.join(...Object.values(options), fullNmInp.value ? fullNmInp.value : null),
+        client.join(...Object.values(options), generateUserId(fullNmInp.value)),
         // create local tracks, using microphone and camera
         AgoraRTC.createMicrophoneAudioTrack(),
         AgoraRTC.createCameraVideoTrack()
     ]);
 
     // play local video track
+    if (localTracks.videoTrack && localTracks.audioTrack) {
     localTracks.videoTrack.play("local-player")
-    localPlayerName.textContent = `localVideo(${userId})`
+        localPlayerName.textContent = `localVideo(${decodeUserIdName(userId)})`
 
     // publish local tracks to channel
     await client.publish(Object.values(localTracks))
     console.log("publish success")
 }
+}
 
 function handleUserPublished(user, mediaType) {
-    const id = user.uid
+    const id = decodeUserIdRndNum(user.uid)
     remoteUsers[id] = user
     subscribe(user, mediaType)
 }
 
-function handleUserUnpublished(user) {
-    const id = user.uid
+function handleUserUnpublished(user, mediaType) {
+    if (mediaType === 'video') {
+        const id = decodeUserIdRndNum(user.uid)
     delete remoteUsers[id]
     document.getElementById(`player-wrapper-${id}`).remove()
 }
+}
 
 async function subscribe(user, mediaType) {
-    const id = user.uid
+    const id = decodeUserIdRndNum(user.uid)
     // subscribe to a remote user
     await client.subscribe(user, mediaType)
     console.log("subscribe success")
@@ -151,7 +160,7 @@ async function subscribe(user, mediaType) {
 
         const str = `
             <div id="player-wrapper-${id}">
-              <p class="player-name">remoteUser(${id})</p>
+              <p class="player-name">remoteUser(${decodeUserIdName(user.uid)})</p>
               <div id="player-${id}" class="player"></div>
             </div>
         `
