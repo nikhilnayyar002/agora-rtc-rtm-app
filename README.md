@@ -1,11 +1,18 @@
 # agora-rtc-js
 
-### Installation
+## Repo Main Branches
+
+Switch to any of the following branch - 
+
+* rtc
+* live
+
+## Installation
 
 * ```npm ci```
 
-### Hot Reload
+## Hot Reload
 * ```npm run start```
 
-### Build
+## Build
 * ```npm run build```
