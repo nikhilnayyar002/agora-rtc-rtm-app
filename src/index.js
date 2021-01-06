@@ -7,7 +7,7 @@ import "./index.css"
 import { CLIENT_ROLES, generateUserId, decodeUserIdRndNum, decodeUserIdName } from "./helper"
 
 /** client */
-const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
+const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
 
 /** local tracks */
 const localTracks = { videoTrack: null, audioTrack: null }
@@ -19,6 +19,8 @@ let remoteUsers = {}
 let options = { appid: null, channelName: null, token: null }
 /** local user id */
 let userId = null
+/** client role */
+let clientRole = CLIENT_ROLES.audience
 
 // dom elements
 const appIdInp = document.getElementById("appid")
@@ -43,12 +45,11 @@ leaveBtn.addEventListener("click", () => {
 })
 
 /** function to run on start of page load. */
-function onInit() {
+async function onInit() {
     // the demo can auto join channel with params in url
     // originally this was the url form : `index.html?appid=${options.appid}&channel=${options.channelName}&token=${options.token}`
     const urlParams = new URL(location.href).searchParams;
     const token = urlParams.get("token")
-
     if (token) {
         options = JSON.parse(decodeURIComponent(token))
 
@@ -63,6 +64,11 @@ function onInit() {
         // onSubmit()
     }
 }
+    else
+      /** since there is no token then one can become host and share joining link afterward to audience */ {
+        await client.setClientRole(CLIENT_ROLES.host)
+        clientRole = CLIENT_ROLES.host
+    }
 
     joinBtn.disabled = false
 }
@@ -115,16 +121,17 @@ async function leave() {
 async function join() {
     // add event listener to play remote tracks when remote user publishs.
     client.on("user-published", handleUserPublished)
-    client.on("user-unpublished", handleUserUnpublished);
+    client.on("user-unpublished", handleUserUnpublished)
+
+        // join the channel
+    const proms = [client.join(...Object.values(options), generateUserId(fullNmInp.value))]
+    if (clientRole === CLIENT_ROLES.host) {
+        // create local tracks, using microphone and camera
+        proms.push(AgoraRTC.createMicrophoneAudioTrack(), AgoraRTC.createCameraVideoTrack())
+    }
 
     // join a channel and create local tracks, we can use Promise.all to run them concurrently
-    [userId, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all([
-        // join the channel
-        client.join(...Object.values(options), generateUserId(fullNmInp.value)),
-        // create local tracks, using microphone and camera
-        AgoraRTC.createMicrophoneAudioTrack(),
-        AgoraRTC.createCameraVideoTrack()
-    ]);
+    [userId, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all(proms)
 
     // play local video track
     if (localTracks.videoTrack && localTracks.audioTrack) {
