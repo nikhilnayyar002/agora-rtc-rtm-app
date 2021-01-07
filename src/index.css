@@ -1,50 +1,58 @@
-.banner {
-  padding: 0;
-  background-color: #52575c;
-  color: white;
+:root {
+  font-size: 1rem;
 }
 
-.banner-text {
-  padding: 8px 20px;
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  /* scroll-behavior: smooth; */
+}
+
+body {
   margin: 0;
+  padding: 0;
+  font-family: "Roboto";
+  font-weight: 400;
 }
 
-
-#join-form {
-  margin-top: 10px;
-}
-
-.tips {
-  font-size: 12px;
-  margin-bottom: 2px;
-  color: gray;
-}
-
-.join-info-text {
-  margin-bottom: 2px;
-}
-
+body,
 input {
-  width: 100%;
-  margin-bottom: 2px;
+  letter-spacing: 0.03125rem !important;
 }
 
-.player {
-  width: 480px;
-  height: 320px;
+#root {
+  height: 100%;
 }
 
-.player-name {
-  margin: 8px 0;
-}
-
-#success-alert, #success-alert-with-token {
+/* image */
+img {
+  object-fit: cover;
   display: none;
 }
 
-@media (max-width: 640px) {
-  .player {
-    width: 320px;
-    height: 240px;
-  }
+img[src] {
+  /* firefox black outline fix */
+  display: block;
+}
+
+/****************************************************************************************************************/
+#appSide {
+  max-width: 20rem;
+}
+.appVideoItem {
+  width: 320px;
+  height: 240px;
+  flex: 0 0 auto;
+  position: relative;
+}
+#appLocalVideoItem {
+  display: none;
+}
+#appChatMessages {
+  display: none;
 }

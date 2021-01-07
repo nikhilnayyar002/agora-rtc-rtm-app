@@ -1,10 +1,8 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
-
-import "bootstrap/dist/js/bootstrap.bundle.min.js"
-import "jquery/dist/jquery.slim.min.js"
+import { Modal } from "bootstrap"
 import 'bootstrap/dist/css/bootstrap.min.css'
 import "./index.css"
-import { CLIENT_ROLES, generateUserId, decodeUserIdRndNum, decodeUserIdName } from "./helper"
+import { CLIENT_ROLES, generateUserId, decodeUserIdRndNum, decodeUserIdName, copyTextToClipboard } from "./helper"
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
@@ -13,7 +11,7 @@ const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" });
 const localTracks = { videoTrack: null, audioTrack: null }
 
 /** remote users */
-let remoteUsers = {}
+let remoteHosts = {}
 
 /** options passed on joining channel */
 let options = { appid: null, channelName: null, token: null }
@@ -26,23 +24,34 @@ let clientRole = CLIENT_ROLES.audience
 const appIdInp = document.getElementById("appid")
 const tokenInp = document.getElementById("token")
 const channelInp = document.getElementById("channel")
-const fullNmInp = document.getElementById("full-name")
-const form = document.getElementById("join-form")
+const fullNmInp = document.getElementById("fullName")
+const form = document.getElementById("joinForm")
 const joinBtn = document.getElementById("join")
 const leaveBtn = document.getElementById("leave")
-const localPlayerName = document.getElementById("local-player-name")
-const remotePlayerlist = document.getElementById("remote-playerlist")
+const localVideoItem = document.getElementById("appLocalVideoItem")
+const localVideoItemText = document.getElementById("appLocalVideoText")
+const videosContainer = document.getElementById("appVideoItems")
+
+const joinFormModal = new Modal(document.getElementById('joinFormModal'), {
+    keyboard: false,
+    backdrop: "static"
+})
+
+let currBigScreenPlayedVideoItemId = null
+let currBigScreenPlayedVideoItemTrack = null
 
 /** form submit */
-form.addEventListener("submit", (e) => {
+form.onsubmit = (e) => {
     e.preventDefault()
     onSubmit()
-})
+}
 
-leaveBtn.addEventListener("click", () => {
+leaveBtn.onclick = () => {
     leaveBtn.disabled = true
     leave()
-})
+}
+
+localVideoItem.onclick = onAppVideoItemClick
 
 /** function to run on start of page load. */
 async function onInit() {
@@ -53,24 +62,24 @@ async function onInit() {
     if (token) {
         options = JSON.parse(decodeURIComponent(token))
 
-    /**
-     * when you create project in console. You have the option to authenticate using appid  or appid + token.
-     * In case you choose appid only then token can be null
-     */
-    if (options.appid && options.channelName) {
-        appIdInp.value = options.appid
-        tokenInp.value = options.token
-        channelInp.value = options.channelName
-        // onSubmit()
+        /**
+         * when you create project in console. You have the option to authenticate using appid  or appid + token.
+         * In case you choose appid only then token can be null
+         */
+        if (options.appid && options.channelName) {
+            appIdInp.value = options.appid
+            tokenInp.value = options.token
+            channelInp.value = options.channelName
+            // onSubmit()
+        }
     }
-}
     else
       /** since there is no token then one can become host and share joining link afterward to audience */ {
         await client.setClientRole(CLIENT_ROLES.host)
         clientRole = CLIENT_ROLES.host
     }
 
-    joinBtn.disabled = false
+    joinFormModal.show()
 }
 onInit()
 
@@ -82,13 +91,11 @@ function onSubmit() {
     (async () => {
         try {
             await join()
-            document.querySelector("#success-alert a").href = `index.html?token=${encodeURIComponent(JSON.stringify(options))}`
-            document.getElementById("success-alert").style.display = "block"
+            joinFormModal.hide()
+            leaveBtn.disabled = false
         } catch (error) {
             console.error(error)
             joinBtn.disabled = false
-        } finally {
-            leaveBtn.disabled = false
         }
     })();
 }
@@ -105,15 +112,17 @@ async function leave() {
     }
 
     // remove remote users and player views
-    remoteUsers = {};
-    remotePlayerlist.innerHTML = ""
+    for (let hostId in remoteHosts)
+        document.getElementById(`appVideoItem${hostId}`).remove()
+    remoteHosts = {}
+    checkIfVideoPlayedOnBigScreen(null, true)
 
     // leave the channel
     await client.leave()
 
-    localPlayerName.textContent = ""
+    localVideoItem.style.display = "none"
     joinBtn.disabled = false
-    document.getElementById("success-alert").style.display = "none"
+    joinFormModal.show()
     console.log("client leaves channel success")
 }
 
@@ -123,7 +132,7 @@ async function join() {
     client.on("user-published", handleUserPublished)
     client.on("user-unpublished", handleUserUnpublished)
 
-        // join the channel
+    // join the channel
     const proms = [client.join(...Object.values(options), generateUserId(fullNmInp.value))]
     if (clientRole === CLIENT_ROLES.host) {
         // create local tracks, using microphone and camera
@@ -135,27 +144,31 @@ async function join() {
 
     // play local video track
     if (localTracks.videoTrack && localTracks.audioTrack) {
-    localTracks.videoTrack.play("local-player")
-        localPlayerName.textContent = `localVideo(${decodeUserIdName(userId)})`
+        localTracks.videoTrack.play("appLocalVideo")
+        localVideoItemText.textContent = decodeUserIdName(userId)
+        localVideoItem.style.display = "block"
 
-    // publish local tracks to channel
-    await client.publish(Object.values(localTracks))
-    console.log("publish success")
-}
+        // publish local tracks to channel
+        await client.publish(Object.values(localTracks))
+        console.log("publish success")
+    }
 }
 
 function handleUserPublished(user, mediaType) {
     const id = decodeUserIdRndNum(user.uid)
-    remoteUsers[id] = user
+    remoteHosts[id] = user
     subscribe(user, mediaType)
 }
 
 function handleUserUnpublished(user, mediaType) {
     if (mediaType === 'video') {
         const id = decodeUserIdRndNum(user.uid)
-    delete remoteUsers[id]
-    document.getElementById(`player-wrapper-${id}`).remove()
-}
+        if (remoteHosts[id]) {
+            delete remoteHosts[id]
+            document.getElementById(`appVideoItem${id}`).remove()
+            checkIfVideoPlayedOnBigScreen(`appVideo${id}`)
+        }
+    }
 }
 
 async function subscribe(user, mediaType) {
@@ -164,19 +177,58 @@ async function subscribe(user, mediaType) {
     await client.subscribe(user, mediaType)
     console.log("subscribe success")
     if (mediaType === 'video') {
-
-        const str = `
-            <div id="player-wrapper-${id}">
-              <p class="player-name">remoteUser(${decodeUserIdName(user.uid)})</p>
-              <div id="player-${id}" class="player"></div>
-            </div>
+        const div = document.createElement("div")
+        div.className = "appVideoItem bg-dark border-end"
+        div.id = `appVideoItem${id}`
+        div.setAttribute("data", id)
+        div.onclick = onAppVideoItemClick
+        div.innerHTML = `
+            <div id="appVideo${id}" class="w-100 h-100"></div>
+            <div id="appVideoText" class="bottom-0 p-2 position-absolute text-truncate text-white w-100">${decodeUserIdName(user.uid)}</div>
         `
-        const doc = new DOMParser().parseFromString(str, 'text/html')
-
-        remotePlayerlist.appendChild(doc.body.firstChild)
-        user.videoTrack.play(`player-${id}`)
+        videosContainer.appendChild(div)
+        user.videoTrack.play(`appVideo${id}`)
     }
     else if (mediaType === 'audio') {
         user.audioTrack.play()
     }
+}
+
+/** toggle between app side views */
+function toggleAppSideView(num) {
+    document.getElementById("appParticipant").style.display = !num ? "block" : "none"
+    document.getElementById("appChatMessages").style.display = num ? "flex" : "none"
+}
+document.getElementById("appParticipantBtn").onclick = () => toggleAppSideView(0)
+document.getElementById("appChatMessagesBtn").onclick = () => toggleAppSideView(1)
+/** */
+
+document.getElementById("copyShareLink").onclick = () => {
+    copyTextToClipboard(`${location.origin}/index.html?token=${encodeURIComponent(JSON.stringify(options))}`)
+}
+
+function onAppVideoItemClick(e) {
+    console.log(e)
+    if (currBigScreenPlayedVideoItemId) {
+        document.getElementById(currBigScreenPlayedVideoItemId).parentElement.style.display = "block"
+        currBigScreenPlayedVideoItemTrack.play(currBigScreenPlayedVideoItemId)
+    }
+
+    const appVideoItem = e.currentTarget
+    const userIdRndNum = appVideoItem.getAttribute("data")
+
+    currBigScreenPlayedVideoItemId = appVideoItem.firstElementChild.id
+
+    if (remoteHosts[userIdRndNum])
+        currBigScreenPlayedVideoItemTrack = remoteHosts[userIdRndNum].videoTrack
+    else
+        currBigScreenPlayedVideoItemTrack = localTracks.videoTrack
+
+    appVideoItem.style.display = "none"
+    currBigScreenPlayedVideoItemTrack.play("bigScreenVideo")
+}
+
+function checkIfVideoPlayedOnBigScreen(id, clear) {
+    if (clear || currBigScreenPlayedVideoItemId === id)
+        currBigScreenPlayedVideoItemId = currBigScreenPlayedVideoItemTrack = null
 }

@@ -1,7 +1,8 @@
 {
   "name": "agora-viden-4-js",
   "version": "4.2.1",
-  "description": "",
+  "description": "basic video/voice and chat website.",
+  "private": true,
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,8 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@popperjs/core": "^2.6.0",
     "agora-rtc-sdk-ng": "^4.2.1",
-    "bootstrap": "^4.5.3",
+    "bootstrap": "^5.0.0-beta1",
     "express": "^4.17.1",
     "jquery": "^3.5.1"
   },
