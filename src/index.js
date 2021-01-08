@@ -1,5 +1,6 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { Modal } from "bootstrap"
+import { io } from 'socket.io-client'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import "./index.css"
 import { CLIENT_ROLES, generateUserId, decodeUserIdRndNum, decodeUserIdName, copyTextToClipboard } from "./helper"
@@ -39,6 +40,8 @@ const joinFormModal = new Modal(document.getElementById('joinFormModal'), {
 
 let currBigScreenPlayedVideoItemId = null
 let currBigScreenPlayedVideoItemTrack = null
+
+const socket = io("")
 
 /***************************************************************************************************************************************************************/
 

@@ -16,8 +16,10 @@
     "@popperjs/core": "^2.6.0",
     "agora-rtc-sdk-ng": "^4.2.1",
     "bootstrap": "^5.0.0-beta1",
+    "dotenv": "^8.2.0",
     "express": "^4.17.1",
-    "socket.io": "^3.0.5"
+    "socket.io": "^3.0.5",
+    "socket.io-client": "^3.0.5"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^7.0.0",

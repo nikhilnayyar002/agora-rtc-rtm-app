@@ -1,3 +1,4 @@
+require('dotenv').config()
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CopyPlugin = require("copy-webpack-plugin")
@@ -43,5 +44,14 @@ module.exports = {
                 { from: "./src/favicon.ico", to: "./" },
             ],
         }),
-    ]
+    ],
+    devServer: {
+        port: process.env.CLIENT_PORT,
+        proxy: {
+            '/socket.io': {
+                target: `http://localhost:${process.env.SERVER_PORT}`,
+                ws: true
+            },
+        },
+    }
 }
