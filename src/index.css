@@ -49,6 +49,7 @@ img[src] {
   height: 240px;
   flex: 0 0 auto;
   position: relative;
+  cursor: pointer;
 }
 #appLocalVideoItem {
   display: none;

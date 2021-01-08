@@ -40,6 +40,8 @@ const joinFormModal = new Modal(document.getElementById('joinFormModal'), {
 let currBigScreenPlayedVideoItemId = null
 let currBigScreenPlayedVideoItemTrack = null
 
+/***************************************************************************************************************************************************************/
+
 /** form submit */
 form.onsubmit = (e) => {
     e.preventDefault()
@@ -52,6 +54,15 @@ leaveBtn.onclick = () => {
 }
 
 localVideoItem.onclick = onAppVideoItemClick
+
+document.getElementById("appParticipantBtn").onclick = () => toggleAppSideView(0)
+document.getElementById("appChatMessagesBtn").onclick = () => toggleAppSideView(1)
+
+document.getElementById("copyShareLink").onclick = () => {
+    copyTextToClipboard(`${location.origin}/index.html?token=${encodeURIComponent(JSON.stringify(options))}`)
+}
+
+/***************************************************************************************************************************************************************/
 
 /** function to run on start of page load. */
 async function onInit() {
@@ -194,17 +205,12 @@ async function subscribe(user, mediaType) {
     }
 }
 
+/***************************************************************************************************************************************************************/
+
 /** toggle between app side views */
 function toggleAppSideView(num) {
     document.getElementById("appParticipant").style.display = !num ? "block" : "none"
     document.getElementById("appChatMessages").style.display = num ? "flex" : "none"
-}
-document.getElementById("appParticipantBtn").onclick = () => toggleAppSideView(0)
-document.getElementById("appChatMessagesBtn").onclick = () => toggleAppSideView(1)
-/** */
-
-document.getElementById("copyShareLink").onclick = () => {
-    copyTextToClipboard(`${location.origin}/index.html?token=${encodeURIComponent(JSON.stringify(options))}`)
 }
 
 function onAppVideoItemClick(e) {
