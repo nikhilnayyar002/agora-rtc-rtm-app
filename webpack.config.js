@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin')
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const CopyPlugin = require("copy-webpack-plugin")
 
 module.exports = {
     entry: './src/index.js',
@@ -24,6 +25,7 @@ module.exports = {
     output: {
         path: `${__dirname}/dist`,
         filename: 'index.js',
+        publicPath: '',
     },
     plugins: [
         new HtmlWebpackPlugin({
@@ -35,6 +37,11 @@ module.exports = {
             // both options are optional
             filename: '[name].css',
             chunkFilename: '[id].css',
+        }),
+        new CopyPlugin({
+            patterns: [
+                { from: "./src/favicon.ico", to: "./" },
+            ],
         }),
     ]
 }
