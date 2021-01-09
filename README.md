@@ -21,6 +21,9 @@ In case for client (**Hot Reload + Build**) / **Build** the client build will be
     ```
     npm ci
     ```
+* **Enable Eslint in vscode**
+
+    VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint
 
 ### Server
 
