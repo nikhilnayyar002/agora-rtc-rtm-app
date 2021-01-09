@@ -1,10 +1,11 @@
 /* eslint-env node */
 
-require('dotenv').config()
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CopyPlugin = require("copy-webpack-plugin")
 const Dotenv = require('dotenv-webpack')
+const ESLintPlugin = require('eslint-webpack-plugin')
+const CleanTerminalPlugin = require('clean-terminal-webpack-plugin')
 
 module.exports = {
     entry: './src/index.js',
@@ -48,8 +49,10 @@ module.exports = {
             ],
         }),
         new Dotenv({
-            path:"./.env.local"
-        })
+            path: "./.env.local"
+        }),
+        new ESLintPlugin(),
+        new CleanTerminalPlugin()
     ],
     devServer: {
         port: process.env.CLIENT_PORT,
@@ -58,6 +61,11 @@ module.exports = {
                 target: `http://localhost:${process.env.SERVER_PORT}`,
                 ws: true
             },
+        },
+        stats: {
+            preset: 'none',
+            errors: true,
+            warnings: true
         },
     }
 }

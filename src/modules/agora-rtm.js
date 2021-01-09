@@ -1,3 +1,3 @@
 import AgoraRTM from 'agora-rtm-sdk'
 
-const client = AgoraRTM.createInstance('YourAppId')
+const client = AgoraRTM.createInstance(process.env.APP_ID)

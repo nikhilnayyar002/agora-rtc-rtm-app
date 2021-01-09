@@ -10,7 +10,7 @@
     },
     "rules": {
         "no-use-before-define": ["error", { "functions": false }],
-        "no-unused-vars": "off"
+        "no-unused-vars": "warn"
     },
     "globals": {
         "process": "readonly"
