@@ -11,9 +11,9 @@ Both the server and client will run on localhost.
 
 The server will be available at port ```SERVER_PORT```.
 
-The client will be available at port ```CLIENT_PORT``` only in case of client **Hot Reload** mentioned below.
+The client will be available at port ```CLIENT_PORT``` only in case of client **Hot Reload + Serve** mentioned below.
 
-In case for client (**Hot Reload + build**) / **Build** the client build will be served at port ```SERVER_PORT```.
+In case for client (**Hot Reload + Build**) / **Build** the client build will be served at port ```SERVER_PORT```. Note that the client served can be outdated, any new changes done in client build can only be seen by refreshing the browser tab. If you want to see live changes for the client served then go for client **Hot Reload + Serve**.
 
 ## Instructions
 
@@ -26,7 +26,7 @@ In case for client (**Hot Reload + build**) / **Build** the client build will be
 
 ```server.js``` is the server file.
 
-* **Hot Reload**
+* **Hot Reload + Serve**
     ```
     npm run server
     ```
@@ -35,12 +35,12 @@ In case for client (**Hot Reload + build**) / **Build** the client build will be
 
 ```src/*.*``` files comes under client. Build files are generated in ```dist``` folder.
 
-* **Hot Reload**
+* **Hot Reload + Serve**
     ```
     npm run start
     ```
 
-* **Hot Reload + build**: 
+* **Hot Reload + Build**: 
     ```
     npm run watch
     ```
