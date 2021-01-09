@@ -16,3 +16,4 @@ function toggleAppSideView(num) {
     document.getElementById("appChatMessages").style.display = num ? "flex" : "none"
 }
 
+console.log(process.env.APP_ID)
