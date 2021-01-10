@@ -1,4 +1,5 @@
 import { Modal } from "bootstrap"
+import { decodeUserIdName } from "./helper"
 
 // dom elements
 export const appIdInp = document.getElementById("appid")
@@ -17,3 +18,9 @@ export const joinFormModal = new Modal(document.getElementById('joinFormModal'),
     keyboard: false,
     backdrop: "static"
 })
+
+/** local user id */
+let userId = null
+export const setUserId = val => userId = val
+export const getUserId = () => userId
+export const getLocalUserName = () => decodeUserIdName(getUserId())

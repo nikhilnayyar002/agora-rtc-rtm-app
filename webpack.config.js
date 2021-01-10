@@ -1,11 +1,13 @@
 /* eslint-env node */
-
+require('dotenv-flow').config()
+const webpack = require("webpack")
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const CopyPlugin = require("copy-webpack-plugin")
-const Dotenv = require('dotenv-webpack')
 const ESLintPlugin = require('eslint-webpack-plugin')
 const CleanTerminalPlugin = require('clean-terminal-webpack-plugin')
+
+const serverDomain = `http://localhost:${process.env.SERVER_PORT}`
 
 module.exports = {
     entry: './src/index.js',
@@ -48,9 +50,7 @@ module.exports = {
                 { from: "./src/favicon.ico", to: "./" },
             ],
         }),
-        new Dotenv({
-            path: "./.env.local"
-        }),
+        new webpack.EnvironmentPlugin(['APP_ID']),
         new ESLintPlugin(),
         new CleanTerminalPlugin()
     ],
@@ -58,8 +58,11 @@ module.exports = {
         port: process.env.CLIENT_PORT,
         proxy: {
             '/socket.io': {
-                target: `http://localhost:${process.env.SERVER_PORT}`,
+                target: serverDomain,
                 ws: true
+            },
+            '/api': {
+                target: serverDomain,
             },
         },
         stats: {

@@ -17,7 +17,7 @@
     "agora-rtc-sdk-ng": "^4.2.1",
     "agora-rtm-sdk": "^1.4.1-201",
     "bootstrap": "^5.0.0-beta1",
-    "dotenv": "^8.2.0",
+    "dotenv-flow": "^3.2.0",
     "express": "^4.17.1",
     "socket.io": "^3.0.5",
     "socket.io-client": "^3.0.5"
@@ -26,7 +26,6 @@
     "clean-terminal-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^7.0.0",
     "css-loader": "^5.0.1",
-    "dotenv-webpack": "^6.0.0",
     "eslint": "^7.17.0",
     "eslint-webpack-plugin": "^2.4.1",
     "file-loader": "^6.2.0",

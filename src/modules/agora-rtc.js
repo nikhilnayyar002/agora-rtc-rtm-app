@@ -1,6 +1,6 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, decodeUserIdRndNum, generateUserId } from "./helper"
-import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer } from "./elements"
+import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName } from "./elements"
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" })
@@ -11,9 +11,6 @@ const localTracks = { videoTrack: null, audioTrack: null }
 /** remote users */
 let remoteHosts = {}
 
-/** local user id */
-let userId = null
-
 /** client role */
 let clientRole = CLIENT_ROLES.audience
 
@@ -22,6 +19,9 @@ let options = { appid: null, channelName: null, token: null }
 
 let currBigScreenPlayedVideoItemId = null
 let currBigScreenPlayedVideoItemTrack = null
+
+/** the main host of channel, the one who starts the meeting. */
+let isSessionInitiator = false
 
 /***************************************************************************************************************************************************************/
 
@@ -68,6 +68,7 @@ async function onInit() {
       /** since there is no token then one can become host and share joining link afterward to audience */ {
         await client.setClientRole(CLIENT_ROLES.host)
         clientRole = CLIENT_ROLES.host
+        isSessionInitiator = true
     }
 
     joinFormModal.show()
@@ -78,7 +79,8 @@ function onSubmit() {
     joinBtn.disabled = true
     options.appid = appIdInp.value
     options.token = tokenInp.value ? tokenInp.value : null
-    options.channelName = channelInp.value;
+    options.channelName = channelInp.value
+    setUserId(generateUserId(fullNmInp.value));
     (async () => {
         try {
             await join()
@@ -93,6 +95,12 @@ function onSubmit() {
 
 /** leave channel */
 async function leave() {
+    const data = await fetch("/api/end_session/channelName").then(res => res.json()).catch(() => alert("network error"))
+    if (!data) {
+        leaveBtn.disabled = false
+        return
+    }
+
     for (let trackName in localTracks) {
         const track = localTracks[trackName]
         if (track) {
@@ -124,25 +132,41 @@ async function join() {
     client.on("user-unpublished", handleUserUnpublished)
 
     // join the channel
-    const proms = [client.join(...Object.values(options), generateUserId(fullNmInp.value))]
+    const proms = [client.join(...Object.values(options), getUserId())]
     if (clientRole === CLIENT_ROLES.host) {
         // create local tracks, using microphone and camera
         proms.push(AgoraRTC.createMicrophoneAudioTrack(), AgoraRTC.createCameraVideoTrack())
     }
 
     // join a channel and create local tracks, we can use Promise.all to run them concurrently
-    [userId, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all(proms)
+    [, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all(proms)
 
     // play local video track
     if (localTracks.videoTrack && localTracks.audioTrack) {
         localTracks.videoTrack.play("appLocalVideo")
-        localVideoItemText.textContent = decodeUserIdName(userId)
+        localVideoItemText.textContent = getLocalUserName()
         localVideoItem.style.display = "block"
 
         // publish local tracks to channel
         await client.publish(Object.values(localTracks))
         console.log("publish success")
     }
+
+    // inform the backend that this channel meeting has started
+    if (isSessionInitiator)
+        await fetch("/api/start_session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                "channelName": options.channelName,
+                "userId": getUserId(),
+                "userName": getLocalUserName()
+            })
+        }).catch(() => {
+            const message = "Network error! Please try again"
+            alert(message)
+            throw message
+        })
 }
 
 function handleUserPublished(user, mediaType) {
