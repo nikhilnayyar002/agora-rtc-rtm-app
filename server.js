@@ -62,6 +62,17 @@ app.get('/api/channel_status/:channelName', (req, res) => {
 })
 
 /**
+ * returns @gSuccResObj or @ErrResObj
+ */
+app.get('/api/channel_exists/:channelName', (req, res) => {
+    const channelName = req.params["channelName"]
+    if (channels[channelName])
+        res.json(genSuccResObj())
+    else
+        res.json(genErrResObj())
+})
+
+/**
  * returns @gSuccResObj
  */
 app.post('/api/start_session', (req, res) => {

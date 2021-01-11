@@ -1,7 +1,7 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, decodeUserIdRndNum, generateUserId } from "./helper"
 import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
-import { endSession, isChannelLive, startSession } from './apis';
+import { doesChannelExist, endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
 
 /** client */
@@ -157,6 +157,13 @@ async function join() {
             return //"network error"
         else if (!data.status)
             throw "Channel is not live!"
+    } else {
+        //currently the main host cannot make the old channel live again
+        const data = await doesChannelExist(options.channelName)
+        if (!data)
+            return //"network error"
+        else if (data.status)
+            throw "Channel already exists!"
     }
 
     // add event listener to play remote tracks when remote user publishs.
