@@ -78,7 +78,10 @@ app.post('/api/start_session', (req, res) => {
 app.get('/api/end_session/:channelName', (req, res) => {
     const channelName = req.params["channelName"]
     if (channelName && channels[channelName]) {
-        channels[channelName].endedAt = getCurrTimeInSeconds()
+        if (!channels[channelName].endedAt) {
+            channels[channelName].endedAt = getCurrTimeInSeconds()
+            io.to(channelName).emit("channelInActive")
+        }
         res.json(genSuccResObj())
     }
     else
@@ -102,6 +105,9 @@ io.on('connection', (socket) => {
 
     socket.on('channelJoined', (channelName, userId, userName) => {
         try {
+            // if channel is not live dont do anything
+            if(channels[channelName].endedAt) return
+
             // join channel
             socket.join(channelName)
 
@@ -136,10 +142,10 @@ io.on('connection', (socket) => {
             if (userData) {
                 const channelName = userData.channelName
                 const userId = userData.userId
-                
+
                 // update user total joining time
                 const userRecord = channels[channelName].usersRecord[userId]
-                userRecord.total_time += getCurrTimeInSeconds() - userRecord.lastJoined
+                userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
                 userRecord.lastJoined = null
 
                 // update users list and emit to all members of the channel

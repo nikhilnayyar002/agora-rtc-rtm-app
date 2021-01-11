@@ -52,6 +52,8 @@ socket.on("connect", () => {
         socket.emit("channelJoined", options.channelName, getUserId(), getLocalUserName())
 })
 
+socket.on("channelInActive", () => alert("channel is not live."))
+
 /***************************************************************************************************************************************************************/
 
 /** function to run on start of page load. */
