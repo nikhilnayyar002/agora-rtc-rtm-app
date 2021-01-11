@@ -16,18 +16,19 @@ const io = socket(server)
 app.use(express.json())
 
 /***************************************************************************************/
-const channels = {
-    "sampleChannel": {
-        usersRecord: {
-            "123234:Nikhil Nayyar": {
-                total_time: 0,
-                lastJoined: (new Date().getTime() / 1000)
-            }
-        },
-        mainHost: { userId: "", userName: "" },
-        usersList: [],
-        startedAt: new Date().getTime()
-    }
+const channels = {}
+
+/** { [socketId] : string } */
+const socketIdToUserDataMap = {}
+
+/***************************************************************************************/
+
+const genResObj = (status, message, data) => ({ status, message, data })
+const genSuccResObj = (data = null) => genResObj(true, "success", data)
+const genErrResObj = (data = null) => genResObj(false, "error", data)
+
+function getCurrTimeInSeconds() {
+    return Math.round(new Date().getTime() / 1000)
 }
 
 /************************************************** serve static assets and index.html */
@@ -38,10 +39,22 @@ app.get('/', (_req, res) => res.sendFile(__dirname + 'dist/index.html'))
 
 /***************************************************************************************/
 
-const genResObj = (status, message, data) => ({ status, message, data })
-const genSuccResObj = (data = null) => genResObj(true, "success", data)
-// const genErrResObj =  (data = null) => genResObj(false, "error", data)
+/**
+ * returns @gSuccResObj or @ErrResObj
+ */
+app.get('/api/channel_status/:channelName', (req, res) => {
+    const channelName = req.body["channelName"]
+    if (channels[channelName] && !channels[channelName].endedAt)
+        //channel is live
+        res.json(genSuccResObj())
+    else
+        //channel is not live
+        res.json(genErrResObj())
+})
 
+/**
+ * returns @gSuccResObj
+ */
 app.post('/api/start_session', (req, res) => {
     const channelName = req.body["channelName"]
     const userId = req.body["userId"]
@@ -52,15 +65,24 @@ app.post('/api/start_session', (req, res) => {
             usersRecord: {},
             mainHost: { userId, userName },
             usersList: [],
-            startedAt: new Date().getTime()
+            startedAt: getCurrTimeInSeconds(),
+            endedAt: null
         }
 
     res.json(genSuccResObj())
 })
 
+/**
+ * returns @gSuccResObj or @ErrResObj
+ */
 app.get('/api/end_session/:channelName', (req, res) => {
-    console.log(req.params["channelName"])
-    res.json(genSuccResObj())
+    const channelName = req.params["channelName"]
+    if (channelName && channels[channelName]) {
+        channels[channelName].endedAt = getCurrTimeInSeconds()
+        res.json(genSuccResObj())
+    }
+    else
+        res.json(genErrResObj())
 })
 
 /***************************************************************************************/
@@ -78,19 +100,57 @@ server.listen(port, () => console.log(`App listening at http://localhost:${port}
 io.on('connection', (socket) => {
     console.log('A user connected: ', socket.id)
 
-    socket.on('channelJoined', (channelName, userId) => {
-        const userRecord = channels[channelName].usersRecord[userId]
-        if (userRecord)
-            userRecord.lastJoined = new Date().getTime()
-        else
-            channels[channelName].usersRecord[userId] = {
-                total_time: 0,
-                lastJoined: new Date().getTime()
-            }
+    socket.on('channelJoined', (channelName, userId, userName) => {
+        try {
+            // join channel
+            socket.join(channelName)
+
+            // update user record
+            const userRecord = channels[channelName].usersRecord[userId]
+            if (userRecord)
+                userRecord.lastJoined = getCurrTimeInSeconds()
+            else
+                channels[channelName].usersRecord[userId] = {
+                    userId,
+                    userName,
+                    total_time: 0,
+                    lastJoined: new Date().getTime()
+                }
+
+            // update users list and emit to all members of the channel
+            channels[channelName].usersList.push({ userId, userName })
+            io.to(channelName).emit("onlineUsers")
+
+            // map this socket id to channelName
+            socketIdToUserDataMap[socket.id] = { channelName, userId }
+        } catch (err) {
+            console.log("Error occurred in ws:channelJoined event.", err)
+        }
     })
 
-    socket.on('disconnect', function (data) {
-        // console.log(data);
-        io.sockets.emit('chat', data);
-    });
+    socket.on('disconnect', () => {
+        try {
+            // get channelName joined by this socket
+            const userData = socketIdToUserDataMap[socket.id]
+
+            if (userData) {
+                const channelName = userData.channelName
+                const userId = userData.userId
+                
+                // update user total joining time
+                const userRecord = channels[channelName].usersRecord[userId]
+                userRecord.total_time += getCurrTimeInSeconds() - userRecord.lastJoined
+                userRecord.lastJoined = null
+
+                // update users list and emit to all members of the channel
+                channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
+                io.to(channelName).emit("onlineUsers")
+
+                // delete the channelName joined by this socket
+                delete socketIdToUserDataMap[socket.id]
+            }
+        } catch (err) {
+            console.log("Error occurred in ws:disconnect event.", err)
+        }
+    })
 })

@@ -1,6 +1,8 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, decodeUserIdRndNum, generateUserId } from "./helper"
 import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName } from "./elements"
+import { endSession, isChannelLive, startSession } from './apis';
+import { socket } from './socket';
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" })
@@ -23,6 +25,9 @@ let currBigScreenPlayedVideoItemTrack = null
 /** the main host of channel, the one who starts the meeting. */
 let isSessionInitiator = false
 
+/** is channel successfully joined */
+let channelJoined = false
+
 /***************************************************************************************************************************************************************/
 
 joinForm.onsubmit = (e) => {
@@ -41,6 +46,11 @@ document.getElementById("copyShareLink").onclick = () => {
     copyTextToClipboard(`${location.origin}/index.html?token=${encodeURIComponent(JSON.stringify(options))}`)
     alert("Link Copied !")
 }
+
+socket.on("connect", () => {
+    if (channelJoined)
+        socket.emit("channelJoined", options.channelName, getUserId(), getLocalUserName())
+})
 
 /***************************************************************************************************************************************************************/
 
@@ -88,6 +98,8 @@ function onSubmit() {
             leaveBtn.disabled = false
         } catch (error) {
             console.error(error)
+            if (typeof error === "string")
+                alert(error)
             joinBtn.disabled = false
         }
     })();
@@ -95,11 +107,14 @@ function onSubmit() {
 
 /** leave channel */
 async function leave() {
-    const data = await fetch("/api/end_session/channelName").then(res => res.json()).catch(() => alert("network error"))
-    if (!data) {
+
+    // end the channel on backend
+    if (isSessionInitiator && !await endSession(options.channelName)) {
         leaveBtn.disabled = false
+        alert("Failed to end Live Session. Please try again")
         return
     }
+    channelJoined = false
 
     for (let trackName in localTracks) {
         const track = localTracks[trackName]
@@ -122,11 +137,18 @@ async function leave() {
     localVideoItem.style.display = "none"
     joinBtn.disabled = false
     joinFormModal.show()
-    console.log("client leaves channel success")
 }
 
 /** join channel */
 async function join() {
+
+    // check if channel is live
+    const data = await isChannelLive(options.channelName)
+    if (!data)
+        return
+    else if (!data.status)
+        throw "Channel is not live!"
+
     // add event listener to play remote tracks when remote user publishs.
     client.on("user-published", handleUserPublished)
     client.on("user-unpublished", handleUserUnpublished)
@@ -149,24 +171,15 @@ async function join() {
 
         // publish local tracks to channel
         await client.publish(Object.values(localTracks))
-        console.log("publish success")
     }
 
-    // inform the backend that this channel meeting has started
-    if (isSessionInitiator)
-        await fetch("/api/start_session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                "channelName": options.channelName,
-                "userId": getUserId(),
-                "userName": getLocalUserName()
-            })
-        }).catch(() => {
-            const message = "Network error! Please try again"
-            alert(message)
-            throw message
-        })
+    // make the channel live
+    if (isSessionInitiator && !await startSession(options.channelName, getUserId(), getLocalUserName()))
+        throw "Failed to start Live Session. Please try again"
+
+    // join the channel on backend
+    socket.emit("channelJoined", options.channelName, getUserId(), getLocalUserName())
+    channelJoined = true
 }
 
 function handleUserPublished(user, mediaType) {
@@ -190,7 +203,7 @@ async function subscribe(user, mediaType) {
     const id = decodeUserIdRndNum(user.uid)
     // subscribe to a remote user
     await client.subscribe(user, mediaType)
-    console.log("subscribe success")
+
     if (mediaType === 'video') {
         const div = document.createElement("div")
         div.className = "appVideoItem bg-dark border-end"
@@ -217,7 +230,6 @@ function checkIfVideoPlayedOnBigScreen(id, clear) {
 }
 
 function onAppVideoItemClick(e) {
-    console.log(e)
     if (currBigScreenPlayedVideoItemId) {
         document.getElementById(currBigScreenPlayedVideoItemId).parentElement.style.display = "block"
         currBigScreenPlayedVideoItemTrack.play(currBigScreenPlayedVideoItemId)
