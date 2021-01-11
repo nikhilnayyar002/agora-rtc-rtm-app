@@ -31,6 +31,15 @@ function getCurrTimeInSeconds() {
     return Math.round(new Date().getTime() / 1000)
 }
 
+function onUserLeft(channelName, userRecord, socketId) {
+    // update users list and emit to all members of the channel
+    channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
+    io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+
+    // delete the channelName joined by this socket
+    delete socketIdToUserDataMap[socketId]
+}
+
 /************************************************** serve static assets and index.html */
 
 app.use(express.static(path.join(__dirname, 'dist')))
@@ -43,7 +52,7 @@ app.get('/', (_req, res) => res.sendFile(__dirname + 'dist/index.html'))
  * returns @gSuccResObj or @ErrResObj
  */
 app.get('/api/channel_status/:channelName', (req, res) => {
-    const channelName = req.body["channelName"]
+    const channelName = req.params["channelName"]
     if (channels[channelName] && !channels[channelName].endedAt)
         //channel is live
         res.json(genSuccResObj())
@@ -106,7 +115,7 @@ io.on('connection', (socket) => {
     socket.on('channelJoined', (channelName, userId, userName) => {
         try {
             // if channel is not live dont do anything
-            if(channels[channelName].endedAt) return
+            if (channels[channelName].endedAt) return
 
             // join channel
             socket.join(channelName)
@@ -125,12 +134,29 @@ io.on('connection', (socket) => {
 
             // update users list and emit to all members of the channel
             channels[channelName].usersList.push({ userId, userName })
-            io.to(channelName).emit("onlineUsers")
+            io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
 
             // map this socket id to channelName
             socketIdToUserDataMap[socket.id] = { channelName, userId }
         } catch (err) {
             console.log("Error occurred in ws:channelJoined event.", err)
+        }
+    })
+
+    socket.on('channelLeft', () => {
+        try {
+            // get channelName joined by this socket
+            const userData = socketIdToUserDataMap[socket.id]
+
+            if (userData) {
+                const channelName = userData.channelName
+                const userId = userData.userId
+                const userRecord = channels[channelName].usersRecord[userId]
+
+                onUserLeft(channelName, userRecord, socket.id)
+            }
+        } catch (err) {
+            console.log("Error occurred in ws:channelLeft event.", err)
         }
     })
 
@@ -148,12 +174,7 @@ io.on('connection', (socket) => {
                 userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
                 userRecord.lastJoined = null
 
-                // update users list and emit to all members of the channel
-                channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
-                io.to(channelName).emit("onlineUsers")
-
-                // delete the channelName joined by this socket
-                delete socketIdToUserDataMap[socket.id]
+                onUserLeft(channelName, userRecord, socket.id)
             }
         } catch (err) {
             console.log("Error occurred in ws:disconnect event.", err)

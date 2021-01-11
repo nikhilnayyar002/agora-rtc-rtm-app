@@ -3,6 +3,7 @@ import "./index.css"
 import "./modules/agora-rtc"
 import "./modules/agora-rtm"
 import "./modules/socket"
+import { appParticipant } from './modules/elements';
 
 /***************************************************************************************************************************************************************/
 
@@ -13,6 +14,6 @@ document.getElementById("appChatMessagesBtn").onclick = () => toggleAppSideView(
 
 /** toggle between app side views */
 function toggleAppSideView(num) {
-    document.getElementById("appParticipant").style.display = !num ? "block" : "none"
+    appParticipant.style.display = !num ? "block" : "none"
     document.getElementById("appChatMessages").style.display = num ? "flex" : "none"
 }

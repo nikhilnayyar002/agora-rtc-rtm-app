@@ -1,6 +1,6 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, decodeUserIdRndNum, generateUserId } from "./helper"
-import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName } from "./elements"
+import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
 
@@ -53,6 +53,11 @@ socket.on("connect", () => {
 })
 
 socket.on("channelInActive", () => alert("channel is not live."))
+socket.on("onlineUsers", data => {
+    let str = ""
+    data.forEach(userData => str += `<p class="bg-light border mb-2 p-2 text-truncate">${userData.userName}</p>`)
+    appParticipant.innerHTML = str
+})
 
 /***************************************************************************************************************************************************************/
 
@@ -117,6 +122,7 @@ async function leave() {
         return
     }
     channelJoined = false
+    socket.emit("channelLeft")
 
     for (let trackName in localTracks) {
         const track = localTracks[trackName]
@@ -144,12 +150,14 @@ async function leave() {
 /** join channel */
 async function join() {
 
-    // check if channel is live
-    const data = await isChannelLive(options.channelName)
-    if (!data)
-        return
-    else if (!data.status)
-        throw "Channel is not live!"
+    if (!isSessionInitiator) {
+        //audience must check if channel is live
+        const data = await isChannelLive(options.channelName)
+        if (!data)
+            return //"network error"
+        else if (!data.status)
+            throw "Channel is not live!"
+    }
 
     // add event listener to play remote tracks when remote user publishs.
     client.on("user-published", handleUserPublished)
