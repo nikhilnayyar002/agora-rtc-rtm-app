@@ -1,5 +1,5 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
-import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, decodeUserIdRndNum, generateUserId } from "./helper"
+import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } from "./helper"
 import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
 import { doesChannelExist, endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
@@ -200,14 +200,14 @@ async function join() {
 }
 
 function handleUserPublished(user, mediaType) {
-    const id = decodeUserIdRndNum(user.uid)
+    const id = user.uid
     remoteHosts[id] = user
     subscribe(user, mediaType)
 }
 
 function handleUserUnpublished(user, mediaType) {
     if (mediaType === 'video') {
-        const id = decodeUserIdRndNum(user.uid)
+        const id = user.uid
         if (remoteHosts[id]) {
             delete remoteHosts[id]
             document.getElementById(`appVideoItem${id}`).remove()
@@ -217,7 +217,7 @@ function handleUserUnpublished(user, mediaType) {
 }
 
 async function subscribe(user, mediaType) {
-    const id = decodeUserIdRndNum(user.uid)
+    const id = user.uid
     // subscribe to a remote user
     await client.subscribe(user, mediaType)
 
