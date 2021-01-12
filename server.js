@@ -17,6 +17,7 @@ app.use(express.json())
 
 /***************************************************************************************/
 const channels = {}
+const endedChannels = {}
 
 /** { [socketId] : string } */
 const socketIdToUserDataMap = {}
@@ -31,22 +32,38 @@ function getCurrTimeInSeconds() {
     return Math.round(new Date().getTime() / 1000)
 }
 
+/** update users list and emit to all members of the channel */
+function updateUserList(channelName, data, addToList = true) {
+    if (addToList)
+        channels[channelName].usersList.push(data)
+    else
+        channels[channelName].usersList = channels[channelName].usersList.filter(u => u.userId !== data) // code not optimized
+
+    io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+}
+
+/** update user total joining time */
+function updateUserTimePeriod(channelName, userRecord) {
+    console.log(userRecord.userName, userRecord.lastJoined, (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()), (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined)
+    userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
+    userRecord.lastJoined = null
+}
+
 function onUserLeft(socketId) {
     // get channelName joined by this socket
     const userData = socketIdToUserDataMap[socketId]
 
     if (userData) {
         const channelName = userData.channelName
-        const userId = userData.userId
-        const userRecord = channels[channelName].usersRecord[userId]
 
-        // update user total joining time
-        userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
-        userRecord.lastJoined = null
+        /** if channel live */
+        if (channels[channelName]) {
+            const userId = userData.userId
+            const userRecord = channels[channelName].usersRecord[userId]
 
-        // update users list and emit to all members of the channel
-        channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
-        io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+            updateUserTimePeriod(channelName, userRecord)
+            updateUserList(channelName, userId, false)
+        }
 
         // delete the channelName joined by this socket
         delete socketIdToUserDataMap[socketId]
@@ -114,6 +131,14 @@ app.get('/api/end_session/:channelName', (req, res) => {
         if (!channels[channelName].endedAt) {
             channels[channelName].endedAt = getCurrTimeInSeconds()
             io.to(channelName).emit("channelInActive")
+
+            for (let userId in channels[channelName].usersRecord)
+                updateUserTimePeriod(channelName, channels[channelName].usersRecord[userId])
+
+            delete channels[channelName].usersList
+            /** move channel data to ended channel list and clear it from current list */
+            endedChannels[channelName] = channels[channelName]
+            delete channels[channelName]
         }
         res.json(genSuccResObj())
     }
@@ -124,10 +149,10 @@ app.get('/api/end_session/:channelName', (req, res) => {
 /**
  * returns @gSuccResObj or @ErrResObj
  */
-app.get('/api/channels/:channelName', (req, res) => {
+app.get('/api/channel_report/:channelName', (req, res) => {
     const channelName = req.params["channelName"]
-    if (channels[channelName])
-        res.json(genSuccResObj(channels[channelName]))
+    if (endedChannels[channelName])
+        res.json(genSuccResObj(endedChannels[channelName]))
     else
         res.json(genErrResObj())
 })
@@ -147,10 +172,10 @@ server.listen(port, () => console.log(`App listening at http://localhost:${port}
 io.on('connection', (socket) => {
     console.log('A user connected: ', socket.id)
 
-    socket.on('channelJoined', (channelName, userId, userName) => {
+    socket.on('subscribe', (channelName, userId, userName) => {
         try {
             // if channel is not live dont do anything
-            if (channels[channelName].endedAt) return
+            if (!channels[channelName] || channels[channelName].endedAt) return
 
             // join channel
             socket.join(channelName)
@@ -167,22 +192,20 @@ io.on('connection', (socket) => {
                     lastJoined: getCurrTimeInSeconds()
                 }
 
-            // update users list and emit to all members of the channel
-            channels[channelName].usersList.push({ userId, userName })
-            io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+            updateUserList(channelName, { userId, userName })
 
             // map this socket id to channelName
             socketIdToUserDataMap[socket.id] = { channelName, userId }
         } catch (err) {
-            console.log("Error occurred in ws:channelJoined event.", err)
+            console.log("Error occurred in ws:subscribe event.", err)
         }
     })
 
-    socket.on('channelLeft', () => {
+    socket.on('unsubscribe', () => {
         try {
             onUserLeft(socket.id)
         } catch (err) {
-            console.log("Error occurred in ws:channelLeft event.", err)
+            console.log("Error occurred in ws:unsubscribe event.", err)
         }
     })
 

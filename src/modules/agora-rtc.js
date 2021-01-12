@@ -49,7 +49,7 @@ document.getElementById("copyShareLink").onclick = () => {
 
 socket.on("connect", () => {
     if (channelJoined)
-        socket.emit("channelJoined", options.channelName, getUserId(), getLocalUserName())
+        socket.emit("subscribe", options.channelName, getUserId(), getLocalUserName())
 })
 
 socket.on("channelInActive", () => alert("channel is not live."))
@@ -122,7 +122,7 @@ async function leave() {
         return
     }
     channelJoined = false
-    socket.emit("channelLeft")
+    socket.emit("unsubscribe")
 
     for (let trackName in localTracks) {
         const track = localTracks[trackName]
@@ -195,7 +195,7 @@ async function join() {
         throw "Failed to start Live Session. Please try again"
 
     // join the channel on backend
-    socket.emit("channelJoined", options.channelName, getUserId(), getLocalUserName())
+    socket.emit("subscribe", options.channelName, getUserId(), getLocalUserName())
     channelJoined = true
 }
 
