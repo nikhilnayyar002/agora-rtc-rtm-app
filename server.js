@@ -31,13 +31,26 @@ function getCurrTimeInSeconds() {
     return Math.round(new Date().getTime() / 1000)
 }
 
-function onUserLeft(channelName, userRecord, socketId) {
-    // update users list and emit to all members of the channel
-    channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
-    io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+function onUserLeft(socketId) {
+    // get channelName joined by this socket
+    const userData = socketIdToUserDataMap[socketId]
 
-    // delete the channelName joined by this socket
-    delete socketIdToUserDataMap[socketId]
+    if (userData) {
+        const channelName = userData.channelName
+        const userId = userData.userId
+        const userRecord = channels[channelName].usersRecord[userId]
+
+        // update user total joining time
+        userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
+        userRecord.lastJoined = null
+
+        // update users list and emit to all members of the channel
+        channels[channelName].usersList = channels[channelName].usersList.filter(data => data.userId !== userRecord.userId) // code not optimized
+        io.to(channelName).emit("onlineUsers", channels[channelName].usersList)
+
+        // delete the channelName joined by this socket
+        delete socketIdToUserDataMap[socketId]
+    }
 }
 
 /************************************************** serve static assets and index.html */
@@ -108,6 +121,17 @@ app.get('/api/end_session/:channelName', (req, res) => {
         res.json(genErrResObj())
 })
 
+/**
+ * returns @gSuccResObj or @ErrResObj
+ */
+app.get('/api/channels/:channelName', (req, res) => {
+    const channelName = req.params["channelName"]
+    if (channels[channelName])
+        res.json(genSuccResObj(channels[channelName]))
+    else
+        res.json(genErrResObj())
+})
+
 /***************************************************************************************/
 
 // catch 404 and forward to error handler
@@ -140,7 +164,7 @@ io.on('connection', (socket) => {
                     userId,
                     userName,
                     total_time: 0,
-                    lastJoined: new Date().getTime()
+                    lastJoined: getCurrTimeInSeconds()
                 }
 
             // update users list and emit to all members of the channel
@@ -156,16 +180,7 @@ io.on('connection', (socket) => {
 
     socket.on('channelLeft', () => {
         try {
-            // get channelName joined by this socket
-            const userData = socketIdToUserDataMap[socket.id]
-
-            if (userData) {
-                const channelName = userData.channelName
-                const userId = userData.userId
-                const userRecord = channels[channelName].usersRecord[userId]
-
-                onUserLeft(channelName, userRecord, socket.id)
-            }
+            onUserLeft(socket.id)
         } catch (err) {
             console.log("Error occurred in ws:channelLeft event.", err)
         }
@@ -173,20 +188,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         try {
-            // get channelName joined by this socket
-            const userData = socketIdToUserDataMap[socket.id]
-
-            if (userData) {
-                const channelName = userData.channelName
-                const userId = userData.userId
-
-                // update user total joining time
-                const userRecord = channels[channelName].usersRecord[userId]
-                userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
-                userRecord.lastJoined = null
-
-                onUserLeft(channelName, userRecord, socket.id)
-            }
+            onUserLeft(socket.id)
         } catch (err) {
             console.log("Error occurred in ws:disconnect event.", err)
         }
