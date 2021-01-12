@@ -1,7 +1,7 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } from "./helper"
-import { appIdInp, channelInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
-import { doesChannelExist, endSession, isChannelLive, startSession } from './apis';
+import { appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
+import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
 
 /** client */
@@ -17,16 +17,16 @@ let remoteHosts = {}
 let clientRole = CLIENT_ROLES.audience
 
 /** options passed on joining channel */
-let options = { appid: null, channelName: null, token: null }
+let options = { appid: null, roomName: null, token: null }
+
+/** successfully joined channelName*/
+let channelName = null
 
 let currBigScreenPlayedVideoItemId = null
 let currBigScreenPlayedVideoItemTrack = null
 
 /** the main host of channel, the one who starts the meeting. */
 let isSessionInitiator = false
-
-/** is channel successfully joined */
-let channelJoined = false
 
 /***************************************************************************************************************************************************************/
 
@@ -48,8 +48,8 @@ document.getElementById("copyShareLink").onclick = () => {
 }
 
 socket.on("connect", () => {
-    if (channelJoined)
-        socket.emit("subscribe", options.channelName, getUserId(), getLocalUserName())
+    if (channelName)
+        socket.emit("subscribe", channelName, getUserId(), getLocalUserName())
 })
 
 socket.on("channelInActive", () => alert("channel is not live."))
@@ -64,7 +64,7 @@ socket.on("onlineUsers", data => {
 /** function to run on start of page load. */
 async function onInit() {
     // the demo can auto join channel with params in url
-    // originally this was the url form : `index.html?appid=${options.appid}&channel=${options.channelName}&token=${options.token}`
+    // originally this was the url form : `index.html?appid=${options.appid}&channel=${options.roomName}&token=${options.token}`
     const urlParams = new URL(location.href).searchParams;
     const token = urlParams.get("token")
     if (token) {
@@ -74,10 +74,10 @@ async function onInit() {
          * when you create project in console. You have the option to authenticate using appid  or appid + token.
          * In case you choose appid only then token can be null
          */
-        if (options.appid && options.channelName) {
+        if (options.appid && options.roomName) {
             appIdInp.value = options.appid
             tokenInp.value = options.token
-            channelInp.value = options.channelName
+            roomNameInp.value = options.roomName
             // onSubmit()
         }
     }
@@ -96,7 +96,7 @@ function onSubmit() {
     joinBtn.disabled = true
     options.appid = appIdInp.value
     options.token = tokenInp.value ? tokenInp.value : null
-    options.channelName = channelInp.value
+    options.roomName = roomNameInp.value
     setUserId(generateUserId(fullNmInp.value));
     (async () => {
         try {
@@ -105,8 +105,6 @@ function onSubmit() {
             leaveBtn.disabled = false
         } catch (error) {
             console.error(error)
-            if (typeof error === "string")
-                alert(error)
             joinBtn.disabled = false
         }
     })();
@@ -115,13 +113,16 @@ function onSubmit() {
 /** leave channel */
 async function leave() {
 
-    // end the channel on backend
-    if (isSessionInitiator && !await endSession(options.channelName)) {
-        leaveBtn.disabled = false
-        alert("Failed to end Live Session. Please try again")
-        return
+    if (isSessionInitiator) {
+        // end the channel on backend
+        const res = await endSession(options.roomName)
+        console.log(res && res.data) // log name of channel that ended
+        if (isSessionInitiator && !res) {
+            leaveBtn.disabled = false
+            return // network error occurred. Dont do anything.
+        }
     }
-    channelJoined = false
+    channelName = null
     socket.emit("unsubscribe")
 
     for (let trackName in localTracks) {
@@ -150,28 +151,28 @@ async function leave() {
 /** join channel */
 async function join() {
 
+    let res = null
     if (!isSessionInitiator) {
         //audience must check if channel is live
-        const data = await isChannelLive(options.channelName)
-        if (!data)
+        res = await isChannelLive(options.roomName)
+        if (!res)
             return //"network error"
-        else if (!data.status)
+        else if (!res.status)
             throw "Channel is not live!"
     } else {
-        //currently the main host cannot make the old channel live again
-        const data = await doesChannelExist(options.channelName)
-        if (!data)
-            return //"network error"
-        else if (data.status)
-            throw "Channel already exists!"
+        // make the channel live
+        res = await startSession(options.roomName, getUserId(), getLocalUserName())
+        if (!res)
+            throw "Failed to start Live Session. Please try again" //"network error"
     }
+    channelName = res.data
 
     // add event listener to play remote tracks when remote user publishs.
     client.on("user-published", handleUserPublished)
     client.on("user-unpublished", handleUserUnpublished)
 
     // join the channel
-    const proms = [client.join(...Object.values(options), getUserId())]
+    const proms = [client.join(options.appid, channelName, options.token, getUserId())]
     if (clientRole === CLIENT_ROLES.host) {
         // create local tracks, using microphone and camera
         proms.push(AgoraRTC.createMicrophoneAudioTrack(), AgoraRTC.createCameraVideoTrack())
@@ -190,13 +191,8 @@ async function join() {
         await client.publish(Object.values(localTracks))
     }
 
-    // make the channel live
-    if (isSessionInitiator && !await startSession(options.channelName, getUserId(), getLocalUserName()))
-        throw "Failed to start Live Session. Please try again"
-
     // join the channel on backend
-    socket.emit("subscribe", options.channelName, getUserId(), getLocalUserName())
-    channelJoined = true
+    socket.emit("subscribe", channelName, getUserId(), getLocalUserName())
 }
 
 function handleUserPublished(user, mediaType) {

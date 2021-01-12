@@ -1,11 +1,11 @@
-/* eslint-env node */
-
 require('dotenv-flow').config()
 const express = require('express')
 const http = require('http')
 const path = require('path')
 const socket = require("socket.io")
+const { v4: uuidv4 } = require('uuid');
 
+/***************************************************************************************/
 const port = process.env.SERVER_PORT || 3000
 const app = express()
 const server = http.createServer(app)
@@ -16,11 +16,12 @@ const io = socket(server)
 app.use(express.json())
 
 /***************************************************************************************/
+const roomNameToUniqueChannelMapObj = {}
 const channels = {}
 const endedChannels = {}
 
 /** { [socketId] : string } */
-const socketIdToUserDataMap = {}
+const socketIdToUserDataMapObj = {}
 
 /***************************************************************************************/
 
@@ -44,14 +45,13 @@ function updateUserList(channelName, data, addToList = true) {
 
 /** update user total joining time */
 function updateUserTimePeriod(channelName, userRecord) {
-    console.log(userRecord.userName, userRecord.lastJoined, (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()), (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined)
     userRecord.total_time += (channels[channelName].endedAt ? channels[channelName].endedAt : getCurrTimeInSeconds()) - userRecord.lastJoined
     userRecord.lastJoined = null
 }
 
 function onUserLeft(socketId) {
     // get channelName joined by this socket
-    const userData = socketIdToUserDataMap[socketId]
+    const userData = socketIdToUserDataMapObj[socketId]
 
     if (userData) {
         const channelName = userData.channelName
@@ -66,7 +66,7 @@ function onUserLeft(socketId) {
         }
 
         // delete the channelName joined by this socket
-        delete socketIdToUserDataMap[socketId]
+        delete socketIdToUserDataMapObj[socketId]
     }
 }
 
@@ -81,24 +81,15 @@ app.get('/', (_req, res) => res.sendFile(__dirname + 'dist/index.html'))
 /**
  * returns @gSuccResObj or @ErrResObj
  */
-app.get('/api/channel_status/:channelName', (req, res) => {
-    const channelName = req.params["channelName"]
-    if (channels[channelName] && !channels[channelName].endedAt)
+app.get('/api/channel_status/:roomName', (req, res) => {
+    const roomName = req.params["roomName"]
+    const channelName = roomNameToUniqueChannelMapObj[roomName]
+
+    if (channelName && !channels[channelName].endedAt)
         //channel is live
-        res.json(genSuccResObj())
+        res.json(genSuccResObj(channelName))
     else
         //channel is not live
-        res.json(genErrResObj())
-})
-
-/**
- * returns @gSuccResObj or @ErrResObj
- */
-app.get('/api/channel_exists/:channelName', (req, res) => {
-    const channelName = req.params["channelName"]
-    if (channels[channelName])
-        res.json(genSuccResObj())
-    else
         res.json(genErrResObj())
 })
 
@@ -106,44 +97,59 @@ app.get('/api/channel_exists/:channelName', (req, res) => {
  * returns @gSuccResObj
  */
 app.post('/api/start_session', (req, res) => {
-    const channelName = req.body["channelName"]
+    const roomName = req.body["roomName"]
     const userId = req.body["userId"]
     const userName = req.body["userName"]
 
-    if (!channels[channelName])
+    let channelName = roomNameToUniqueChannelMapObj[roomName]
+
+    if (!channelName) {
+        channelName = uuidv4()
         channels[channelName] = {
+            channelName,
+            roomName,
             usersRecord: {},
             mainHost: { userId, userName },
             usersList: [],
             startedAt: getCurrTimeInSeconds(),
             endedAt: null
         }
+        roomNameToUniqueChannelMapObj[roomName] = channelName
+    }
 
-    res.json(genSuccResObj())
+    res.json(genSuccResObj(channelName))
 })
 
 /**
  * returns @gSuccResObj or @ErrResObj
  */
-app.get('/api/end_session/:channelName', (req, res) => {
-    const channelName = req.params["channelName"]
-    if (channelName && channels[channelName]) {
-        if (!channels[channelName].endedAt) {
-            channels[channelName].endedAt = getCurrTimeInSeconds()
+app.get('/api/end_session/:roomName', (req, res) => {
+    try {
+        const roomName = req.params["roomName"]
+        const channelName = roomNameToUniqueChannelMapObj[roomName]
+        if (channelName) {
+            const channelData = channels[channelName]
+
+            channelData.endedAt = getCurrTimeInSeconds()
             io.to(channelName).emit("channelInActive")
 
-            for (let userId in channels[channelName].usersRecord)
-                updateUserTimePeriod(channelName, channels[channelName].usersRecord[userId])
+            for (let userId in channelData.usersRecord)
+                updateUserTimePeriod(channelName, channelData.usersRecord[userId])
 
+            delete roomNameToUniqueChannelMapObj[roomName]
             delete channels[channelName].usersList
-            /** move channel data to ended channel list and clear it from current list */
-            endedChannels[channelName] = channels[channelName]
             delete channels[channelName]
+
+            /** move channel data to ended channel list and clear it from current list */
+            endedChannels[channelName] = channelData
+
+            res.json(genSuccResObj(channelName))
         }
-        res.json(genSuccResObj())
+        else
+            res.json(genErrResObj())
+    } catch (error) {
+        console.log(error)
     }
-    else
-        res.json(genErrResObj())
 })
 
 /**
@@ -195,7 +201,7 @@ io.on('connection', (socket) => {
             updateUserList(channelName, { userId, userName })
 
             // map this socket id to channelName
-            socketIdToUserDataMap[socket.id] = { channelName, userId }
+            socketIdToUserDataMapObj[socket.id] = { channelName, userId }
         } catch (err) {
             console.log("Error occurred in ws:subscribe event.", err)
         }

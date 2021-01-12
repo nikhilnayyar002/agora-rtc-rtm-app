@@ -4,7 +4,7 @@ import { decodeUserIdName } from "./helper"
 // dom elements
 export const appIdInp = document.getElementById("appid")
 export const tokenInp = document.getElementById("token")
-export const channelInp = document.getElementById("channel")
+export const roomNameInp = document.getElementById("roomName")
 export const fullNmInp = document.getElementById("fullName")
 export const joinForm = document.getElementById("joinForm")
 export const joinBtn = document.getElementById("join")

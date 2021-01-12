@@ -2,12 +2,11 @@ const fetchJsonRes = (url, options = null) => fetch(url, options).then(res => re
 
 export const isChannelLive = channelName => fetchJsonRes(`/api/channel_status/${channelName}`)
 export const endSession = channelName => fetchJsonRes(`/api/end_session/${channelName}`)
-export const doesChannelExist = channelName => fetchJsonRes(`/api/channel_exists/${channelName}`)
 
-export const startSession = (channelName, userId, userName) => {
+export const startSession = (roomName, userId, userName) => {
     return fetchJsonRes("/api/start_session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelName, userId, userName })
+        body: JSON.stringify({ roomName, userId, userName })
     })
 }
