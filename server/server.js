@@ -60,7 +60,7 @@ function onUserLeft(socketId) {
         if (channels[channelName]) {
             const userId = userData.userId
             const userRecord = channels[channelName].usersRecord[userId]
-
+            
             updateUserTimePeriod(channelName, userRecord)
             updateUserList(channelName, userId, false)
         }
@@ -133,8 +133,11 @@ app.get('/api/end_session/:roomName', (req, res) => {
             channelData.endedAt = getCurrTimeInSeconds()
             io.to(channelName).emit("channelInActive")
 
-            for (let userId in channelData.usersRecord)
-                updateUserTimePeriod(channelName, channelData.usersRecord[userId])
+            for (let userId in channelData.usersRecord) {
+                const userRecord = channelData.usersRecord[userId]
+                if (userRecord.lastJoined)
+                    updateUserTimePeriod(channelName, userRecord)
+            }
 
             delete roomNameToUniqueChannelMapObj[roomName]
             delete channels[channelName].usersList

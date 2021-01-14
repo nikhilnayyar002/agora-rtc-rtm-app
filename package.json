@@ -8,7 +8,7 @@
     "start": "webpack serve --config webpack.dev.js",
     "watch": "webpack --watch --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js",
-    "server": "nodemon server"
+    "server": "nodemon --watch server server/server.js"
   },
   "author": "",
   "license": "ISC",

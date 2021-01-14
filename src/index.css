@@ -57,3 +57,15 @@ img[src] {
 #appChatMessages {
   display: none;
 }
+.appVideoText {
+  flex: 1 1 0;
+}
+.appVideoBtns button {
+  width: 2.5rem;
+  height: 2.5rem;
+  outline: none;
+}
+#bigScreenVideo .appVideoItem {
+  width: 100%;
+  height: 100%;
+}
