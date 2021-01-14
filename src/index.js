@@ -1,7 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css'
 import "./index.css"
 import "./modules/agora-rtc"
-import "./modules/agora-rtm"
+// import "./modules/agora-rtm"
 import "./modules/socket"
 import { appParticipant } from './modules/elements';
 

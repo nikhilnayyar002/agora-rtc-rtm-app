@@ -1,0 +1,54 @@
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const { mergeWithRules, merge } = require('webpack-merge')
+const common = require('./webpack.common')
+const { use_options_rule, use_rule } = require('./webpack.rules')
+
+const o1 = mergeWithRules(use_options_rule)(common, {
+    module: {
+        rules: [
+            {
+                test: /\.html$/,
+                use: [{ loader: 'html-loader', options: { minimize: true } }]
+            }
+        ],
+    },
+})
+const o2 = mergeWithRules(use_rule)(o1, {
+    module: {
+        rules: [
+            {
+                test: /\.css$/,
+                use: [{ loader: MiniCssExtractPlugin.loader }]
+            }
+        ],
+    },
+})
+const o3 = merge(o2, {
+    mode: 'production',
+    plugins: [
+        new MiniCssExtractPlugin({
+            filename: '[name].[contenthash].css'
+        }),
+    ],
+    optimization: {
+        moduleIds: 'deterministic',
+        runtimeChunk: 'single',
+        splitChunks: {
+            cacheGroups: {
+                vendor: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'all',
+                },
+                styles: {
+                    name: 'styles',
+                    test: /\.css$/,
+                    chunks: 'all',
+                    enforce: true,
+                },
+            },
+        },
+    },
+})
+
+module.exports = o3
