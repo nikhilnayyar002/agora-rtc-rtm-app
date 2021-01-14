@@ -1,4 +1,5 @@
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const TerserPlugin = require("terser-webpack-plugin")
 const { mergeWithRules, merge } = require('webpack-merge')
 const common = require('./webpack.common')
 const { use_options_rule, use_rule } = require('./webpack.rules')
@@ -31,6 +32,12 @@ const o3 = merge(o2, {
         }),
     ],
     optimization: {
+        minimize: true,
+        minimizer: [
+            new TerserPlugin({
+                extractComments: false,
+            }),
+        ],
         moduleIds: 'deterministic',
         runtimeChunk: 'single',
         splitChunks: {

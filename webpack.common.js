@@ -15,7 +15,13 @@ module.exports = {
             },
             {
                 test: /\.(svg|png|jpe?g|gif)$/i,
-                use: [{ loader: 'file-loader' }]
+                use: [{
+                    loader: 'file-loader',
+                    options: {
+                        name: '[name].[contenthash].[ext]',
+                        outputPath: 'assets/'
+                    }
+                }]
             },
             {
                 test: /\.css$/,
