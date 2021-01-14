@@ -15,7 +15,6 @@ export const videosContainer = document.getElementById("appVideoItems")
 export const appParticipant = document.getElementById("appParticipant")
 export const bigScreenVideoCont = document.getElementById("bigScreenVideo")
 
-
 // bootstrap modal
 export const joinFormModal = new Modal(document.getElementById('joinFormModal'), {
     keyboard: false,

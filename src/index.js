@@ -3,7 +3,7 @@ import "./index.css"
 import "./modules/agora-rtc"
 // import "./modules/agora-rtm"
 import "./modules/socket"
-import { appParticipant } from './modules/elements';
+import { appParticipant } from './modules/elements'
 
 /***************************************************************************************************************************************************************/
 

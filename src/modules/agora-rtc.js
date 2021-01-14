@@ -1,8 +1,14 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } from "./helper"
-import { appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant, bigScreenVideoCont } from "./elements"
+import {
+    appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal,
+    joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant,
+    bigScreenVideoCont
+} from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
+import MuteAudioIcon from '../assets/mute-audio.svg'
+import MuteVideoIcon from '../assets/mute-video.svg'
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" })
@@ -179,8 +185,8 @@ async function join() {
     // join a channel and create local tracks, we can use Promise.all to run them concurrently
     [, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all(proms)
 
-    // play local video track
     if (localTracks.videoTrack && localTracks.audioTrack) {
+        // play local video track
         localTracks.videoTrack.play("appLocalVideo")
         localVideoItemText.textContent = getLocalUserName()
         localVideoItem.style.display = "block"
@@ -200,31 +206,45 @@ function handleUserPublished(user, mediaType) {
 }
 
 function handleUserUnpublished(user, mediaType) {
-    if (mediaType === 'video') {
-        const id = user.uid
-        if (remoteHosts[id]) {
-            delete remoteHosts[id]
-            document.getElementById(`appVideoItem${id}`).remove()
-        }
-    }
+    // if (mediaType === 'video') {
+    //     const id = user.uid
+    //     if (remoteHosts[id]) {
+    //         delete remoteHosts[id]
+    //         document.getElementById(`appVideoItem${id}`).remove()
+    //     }
+    // }
 }
 
 async function subscribe(user, mediaType) {
     const id = user.uid
     // subscribe to a remote user
     await client.subscribe(user, mediaType)
-
     if (mediaType === 'video') {
-        const div = document.createElement("div")
-        div.className = "appVideoItem bg-dark border-end"
-        div.id = `appVideoItem${id}`
-        div.onclick = onAppVideoItemClick
-        div.innerHTML = `
-            <div id="appVideo${id}" class="w-100 h-100"></div>
-            <div id="appVideoText" class="bottom-0 p-2 position-absolute text-truncate text-white w-100">${decodeUserIdName(user.uid)}</div>
-        `
-        videosContainer.appendChild(div)
-        user.videoTrack.play(`appVideo${id}`)
+        const divId = `appVideoItem${id}`
+        const vidId = `appVideo${id}`
+        if (!document.getElementById(divId)) {
+            const div = document.createElement("div")
+            div.className = "appVideoItem bg-dark border-end"
+            div.id = divId
+            div.onclick = onAppVideoItemClick
+            div.innerHTML = `
+                <div id="${vidId}" class="w-100 h-100"></div>
+                <div class="d-flex bottom-0 p-2 position-absolute w-100 align-items-center">
+                    <div class="appVideoText text-truncate text-white pe-3">${decodeUserIdName(user.uid)}</div>
+                    <div class="d-flex appVideoBtns">
+                        <button id="mute-local-mic" class="bg-dark border p-2 rounded-circle">
+                            <img class="w-100 h-100" src=${MuteAudioIcon} alt="">
+                        </button>
+                        <div class="p-1"></div>
+                        <button id="mute-local-video" class="bg-dark border p-2 rounded-circle">
+                            <img class="w-100 h-100" src=${MuteVideoIcon} alt="">
+                        </button>
+                    </div>
+                </div>
+            `
+            videosContainer.appendChild(div)
+        }
+        user.videoTrack.play(vidId)
     }
     else if (mediaType === 'audio') {
         user.audioTrack.play()
@@ -234,8 +254,53 @@ async function subscribe(user, mediaType) {
 /***************************************************************************************************************************************************************/
 
 function onAppVideoItemClick(e) {
-    if(bigScreenVideoCont.firstElementChild) {
+    if (bigScreenVideoCont.firstElementChild) {
         videosContainer.appendChild(bigScreenVideoCont.firstElementChild)
     }
     bigScreenVideoCont.appendChild(e.currentTarget)
 }
+
+function changeAppVideoBtnBg(elem) {
+    if (elem.classList.contains("bg-dark")) {
+        elem.classList.remove("bg-dark")
+        elem.classList.add("bg-danger")
+    } else {
+        elem.classList.remove("bg-danger")
+        elem.classList.add("bg-dark")
+    }
+}
+
+async function muteLocalTrack(elem, trackName, type) {
+    try {
+        if (localTracks[trackName]) {
+            await client.unpublish(localTracks[trackName])
+            localTracks[trackName] = null
+            if (type === "video")
+                document.getElementById("appLocalVideo").innerHTML = ""
+        }
+        else {
+            if (type === "audio")
+                localTracks[trackName] = await AgoraRTC.createMicrophoneAudioTrack()
+            else {
+                localTracks[trackName] = await AgoraRTC.createCameraVideoTrack()
+                localTracks[trackName].play("appLocalVideo")
+            }
+            await client.publish(localTracks[trackName])
+        }
+        changeAppVideoBtnBg(elem)
+    } catch (err) {
+        console.log(err)
+    } finally {
+        elem.disabled = false
+    }
+}
+
+function onLocalAppVideoItemBtnClick(trackName, type, event) {
+    event.stopPropagation()
+    const elem = event.currentTarget
+    elem.disabled = true
+    muteLocalTrack(elem, trackName, type)
+}
+
+document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
+document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
