@@ -1,6 +1,6 @@
 import AgoraRTC from "agora-rtc-sdk-ng"
 import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } from "./helper"
-import { appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant } from "./elements"
+import { appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal, joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant, bigScreenVideoCont } from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
 
@@ -21,9 +21,6 @@ let options = { appid: null, roomName: null, token: null }
 
 /** successfully joined channelName*/
 let channelName = null
-
-let currBigScreenPlayedVideoItemId = null
-let currBigScreenPlayedVideoItemTrack = null
 
 /** the main host of channel, the one who starts the meeting. */
 let isSessionInitiator = false
@@ -138,7 +135,6 @@ async function leave() {
     for (let hostId in remoteHosts)
         document.getElementById(`appVideoItem${hostId}`).remove()
     remoteHosts = {}
-    checkIfVideoPlayedOnBigScreen(null, true)
 
     // leave the channel
     await client.leave()
@@ -150,6 +146,8 @@ async function leave() {
 
 /** join channel */
 async function join() {
+    await client.setClientRole(CLIENT_ROLES.host)
+    clientRole = CLIENT_ROLES.host
 
     let res = null
     if (!isSessionInitiator) {
@@ -207,7 +205,6 @@ function handleUserUnpublished(user, mediaType) {
         if (remoteHosts[id]) {
             delete remoteHosts[id]
             document.getElementById(`appVideoItem${id}`).remove()
-            checkIfVideoPlayedOnBigScreen(`appVideo${id}`)
         }
     }
 }
@@ -221,7 +218,6 @@ async function subscribe(user, mediaType) {
         const div = document.createElement("div")
         div.className = "appVideoItem bg-dark border-end"
         div.id = `appVideoItem${id}`
-        div.setAttribute("data", id)
         div.onclick = onAppVideoItemClick
         div.innerHTML = `
             <div id="appVideo${id}" class="w-100 h-100"></div>
@@ -237,27 +233,9 @@ async function subscribe(user, mediaType) {
 
 /***************************************************************************************************************************************************************/
 
-function checkIfVideoPlayedOnBigScreen(id, clear) {
-    if (clear || currBigScreenPlayedVideoItemId === id)
-        currBigScreenPlayedVideoItemId = currBigScreenPlayedVideoItemTrack = null
-}
-
 function onAppVideoItemClick(e) {
-    if (currBigScreenPlayedVideoItemId) {
-        document.getElementById(currBigScreenPlayedVideoItemId).parentElement.style.display = "block"
-        currBigScreenPlayedVideoItemTrack.play(currBigScreenPlayedVideoItemId)
+    if(bigScreenVideoCont.firstElementChild) {
+        videosContainer.appendChild(bigScreenVideoCont.firstElementChild)
     }
-
-    const appVideoItem = e.currentTarget
-    const userIdRndNum = appVideoItem.getAttribute("data")
-
-    currBigScreenPlayedVideoItemId = appVideoItem.firstElementChild.id
-
-    if (remoteHosts[userIdRndNum])
-        currBigScreenPlayedVideoItemTrack = remoteHosts[userIdRndNum].videoTrack
-    else
-        currBigScreenPlayedVideoItemTrack = localTracks.videoTrack
-
-    appVideoItem.style.display = "none"
-    currBigScreenPlayedVideoItemTrack.play("bigScreenVideo")
+    bigScreenVideoCont.appendChild(e.currentTarget)
 }
