@@ -45,21 +45,17 @@
       <div class="border-bottom col-auto d-flex justify-content-center p-3">
         <div class="btn-group" role="group">
           <button id="appParticipantBtn" type="button" class="btn btn-primary">Participants</button>
-          <button id="appChatMessagesBtn" type="button" class="btn btn-primary">Chat Messages</button>
+          <button id="appChatBtn" type="button" class="btn btn-primary">Chat Messages</button>
         </div>
       </div>
-      <div id="appParticipant" class="col p-3">
+      <div id="appParticipant" class="col p-3 overflow-auto">
       </div>
-      <div id="appChatMessages" class="col p-3 row g-0 flex-column flex-nowrap">
-        <div class="col">
-          <div class="bg-light border mb-2 p-2">
-            <p class="mb-2 text-truncate">Nikhil Nayyar</p>
-            <p class="mb-0 small">Nikhil Nayyar</p>
-          </div>
+      <div id="appChat" class="col p-3 row g-0 flex-column flex-nowrap overflow-auto">
+        <div id="appChatMessages" class="col overflow-auto">
         </div>
         <div class="border-top col-auto d-flex flex-nowrap pt-3">
-          <input style="width: auto; flex: 1 1 0;" class="form-control" type="text" placeholder="Message..">
-          <button style="width: auto; flex: 0 0 auto;" type="button" class="btn btn-sm btn-primary">Send</button>
+          <input id="messageInput"  style="width: auto; flex: 1 1 0;" class="form-control" type="text" placeholder="Message..">
+          <button id="sendMessage" style="width: auto; flex: 0 0 auto;" type="button" class="btn btn-sm btn-primary">Send</button>
         </div>
       </div>
     </div>

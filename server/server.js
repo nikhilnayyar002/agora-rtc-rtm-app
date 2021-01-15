@@ -49,8 +49,7 @@ function updateUserTimePeriod(channelName, userRecord) {
 
 function onUserLeft(socket) {
     // get channelName joined by this socket
-    const socketId = socket.id
-    const userData = socketId.userData
+    const userData = socket.userData
 
     if (userData) {
         const channelName = userData.channelName
@@ -63,11 +62,11 @@ function onUserLeft(socket) {
             updateUserTimePeriod(channelName, userRecord)
             updateUserList(channelName, userId, false)
         }
-        // delete socketId.userData
+        // delete socket.userData
     }
 }
 
-function isChannelLive(channelName) { return channelName && !channels[channelName].endedAt }
+function isChannelLive(channelName) { return channels[channelName] && !channels[channelName].endedAt }
 
 /************************************************** serve static assets and index.html */
 

@@ -13,7 +13,11 @@ export const localVideoItem = document.getElementById("appLocalVideoItem")
 export const localVideoItemText = document.getElementById("appLocalVideoText")
 export const videosContainer = document.getElementById("appVideoItems")
 export const appParticipant = document.getElementById("appParticipant")
+export const appChatMessages = document.getElementById("appChatMessages")
 export const bigScreenVideoCont = document.getElementById("bigScreenVideo")
+export const raiseHandBtn = document.getElementById("raiseHand")
+export const sendMessageBtn = document.getElementById("sendMessage")
+export const messageInput = document.getElementById("messageInput")
 
 // bootstrap modal
 export const joinFormModal = new Modal(document.getElementById('joinFormModal'), {

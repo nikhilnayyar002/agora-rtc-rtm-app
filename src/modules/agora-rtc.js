@@ -3,12 +3,13 @@ import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } f
 import {
     appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal,
     joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant,
-    bigScreenVideoCont
+    bigScreenVideoCont, raiseHandBtn
 } from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
 import MuteAudioIcon from '../assets/mute-audio.svg'
 import MuteVideoIcon from '../assets/mute-video.svg'
+import { setupRTM } from "./agora-rtm";
 
 /** client */
 const client = AgoraRTC.createClient({ mode: "live", codec: "vp8" })
@@ -53,7 +54,6 @@ document.getElementById("copyShareLink").onclick = () => {
 document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
 document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
 
-const raiseHandBtn = document.getElementById("raiseHand")
 raiseHandBtn.onclick = () => {
     if (clientRole === CLIENT_ROLES.host)
         publishLocalTracks()
@@ -117,6 +117,7 @@ function onSubmit() {
     (async () => {
         try {
             await join()
+            await setupRTM(channelName)
             joinFormModal.hide()
             leaveBtn.disabled = false
         } catch (error) {
