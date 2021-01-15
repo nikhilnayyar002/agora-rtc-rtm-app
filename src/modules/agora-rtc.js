@@ -53,6 +53,14 @@ document.getElementById("copyShareLink").onclick = () => {
 document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
 document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
 
+const raiseHandBtn = document.getElementById("raiseHand")
+raiseHandBtn.onclick = () => {
+    if (clientRole === CLIENT_ROLES.host)
+        publishLocalTracks()
+    else if (channelName)
+        socket.emit("handRaise", channelName, getLocalUserName())
+}
+
 socket.on("connect", () => {
     if (channelName)
         socket.emit("subscribe", channelName, getUserId(), getLocalUserName())
@@ -86,10 +94,12 @@ async function onInit() {
             roomNameInp.value = options.roomName
             // onSubmit()
         }
+
+        // display raise hand button
+        raiseHandBtn.style.display = "inline-block"
     }
     else
       /** since there is no token then one can become host and share joining link afterward to audience */ {
-        await client.setClientRole(CLIENT_ROLES.host)
         clientRole = CLIENT_ROLES.host
         isSessionInitiator = true
     }
@@ -155,9 +165,6 @@ async function leave() {
 
 /** join channel */
 async function join() {
-    await client.setClientRole(CLIENT_ROLES.host)
-    clientRole = CLIENT_ROLES.host
-
     let res = null
     if (!isSessionInitiator) {
         //audience must check if channel is live
@@ -175,84 +182,94 @@ async function join() {
     channelName = res.data
 
     // add event listener to play remote tracks when remote user publishs.
-    client.on("user-published", handleUserPublished)
-    client.on("user-unpublished", handleUserUnpublished)
+    client.on("user-published", subscribe)
+    client.on("user-left", handleUserLeft)
+    client.on("user-joined", handleUserJoined)
 
     // join the channel
-    const proms = [client.join(options.appid, channelName, options.token, getUserId())]
-    if (clientRole === CLIENT_ROLES.host) {
-        // create local tracks, using microphone and camera
-        proms.push(AgoraRTC.createMicrophoneAudioTrack(), AgoraRTC.createCameraVideoTrack())
-    }
+    await client.join(options.appid, channelName, options.token, getUserId())
 
-    // join a channel and create local tracks, we can use Promise.all to run them concurrently
-    [, localTracks.audioTrack, localTracks.videoTrack] = await Promise.all(proms)
-
-    if (localTracks.videoTrack && localTracks.audioTrack) {
-        // play local video track
-        localTracks.videoTrack.play("appLocalVideo")
-        localVideoItemText.textContent = getLocalUserName()
-        localVideoItem.style.display = "block"
-
-        // publish local tracks to channel
-        await client.publish(Object.values(localTracks))
-    }
+    if (clientRole === CLIENT_ROLES.host)
+        await publishLocalTracks()
 
     // join the channel on backend
     socket.emit("subscribe", channelName, getUserId(), getLocalUserName())
 }
 
-function handleUserPublished(user, mediaType) {
-    const id = user.uid
-    remoteHosts[id] = user
-    subscribe(user, mediaType)
+async function publishLocalTracks() {
+    await client.setClientRole(CLIENT_ROLES.host);
+
+    // create local tracks, using microphone and camera
+    [localTracks.audioTrack, localTracks.videoTrack] = await Promise.all([AgoraRTC.createMicrophoneAudioTrack(), AgoraRTC.createCameraVideoTrack()])
+
+    // play local video track
+    localTracks.videoTrack.play("appLocalVideo")
+    localVideoItemText.textContent = getLocalUserName()
+    localVideoItem.style.display = "block"
+
+    // publish local tracks to channel
+    await client.publish(Object.values(localTracks))
+
+    raiseHandBtn.disabled = true
 }
 
-function handleUserUnpublished(user, mediaType) {
-    // if (mediaType === 'video') {
-    //     const id = user.uid
-    //     if (remoteHosts[id]) {
-    //         delete remoteHosts[id]
-    //         document.getElementById(`appVideoItem${id}`).remove()
-    //     }
-    // }
+function handleUserLeft(user) {
+    const id = user.uid
+    if (remoteHosts[id]) {
+        delete remoteHosts[id]
+
+        const divId = `appVideoItem${id}`
+        document.getElementById(divId).remove()
+    }
+}
+
+function handleUserJoined(user) {
+    const id = user.uid
+    remoteHosts[id] = user
+
+    const divId = `appVideoItem${id}`
+    const vidId = `appVideo${id}`
+    if (!document.getElementById(divId)) {
+        const div = document.createElement("div")
+        div.className = "appVideoItem bg-dark border-end"
+        div.id = divId
+        div.onclick = onAppVideoItemClick
+
+        const btn1 = document.createElement("button")
+        const btn2 = document.createElement("button")
+        btn1.className = btn2.className = "bg-dark border p-2 rounded-circle"
+        btn1.innerHTML = `<img class="w-100 h-100" src=${MuteAudioIcon} alt="">`
+        btn2.innerHTML = `<img class="w-100 h-100" src=${MuteVideoIcon} alt="">`
+        btn1.onclick = onAppVideoItemBtnClick.bind(null, "audioTrack", "audio", user, vidId)
+        btn2.onclick = onAppVideoItemBtnClick.bind(null, "videoTrack", "video", user, vidId)
+
+        div.innerHTML = `
+            <div id="${vidId}" class="w-100 h-100"></div>
+            <div class="d-flex bottom-0 p-2 position-absolute w-100 align-items-center">
+                <div class="appVideoText text-truncate text-white pe-3">${decodeUserIdName(user.uid)}</div>
+                <div class="d-flex appVideoBtns">
+                <div class="p-1"></div>
+                </div>
+            </div>
+        `
+        const appVideoBtns = div.getElementsByClassName("appVideoBtns")[0]
+        appVideoBtns.prepend(btn1)
+        appVideoBtns.append(btn2)
+        videosContainer.appendChild(div)
+    }
 }
 
 async function subscribe(user, mediaType) {
     const id = user.uid
+
     // subscribe to a remote user
     await client.subscribe(user, mediaType)
+
     if (mediaType === 'video') {
         const divId = `appVideoItem${id}`
         const vidId = `appVideo${id}`
-        if (!document.getElementById(divId)) {
-            const div = document.createElement("div")
-            div.className = "appVideoItem bg-dark border-end"
-            div.id = divId
-            div.onclick = onAppVideoItemClick
-
-            const btn1 = document.createElement("button")
-            const btn2 = document.createElement("button")
-            btn1.className = btn2.className = "bg-dark border p-2 rounded-circle"
-            btn1.innerHTML = `<img class="w-100 h-100" src=${MuteAudioIcon} alt="">`
-            btn2.innerHTML = `<img class="w-100 h-100" src=${MuteVideoIcon} alt="">`
-            btn1.onclick = onAppVideoItemBtnClick.bind(null, "audioTrack", "audio", user, vidId)
-            btn2.onclick = onAppVideoItemBtnClick.bind(null, "videoTrack", "video", user, vidId)
-
-            div.innerHTML = `
-                <div id="${vidId}" class="w-100 h-100"></div>
-                <div class="d-flex bottom-0 p-2 position-absolute w-100 align-items-center">
-                    <div class="appVideoText text-truncate text-white pe-3">${decodeUserIdName(user.uid)}</div>
-                    <div class="d-flex appVideoBtns">
-                    <div class="p-1"></div>
-                    </div>
-                </div>
-            `
-            const appVideoBtns = div.getElementsByClassName("appVideoBtns")[0]
-            appVideoBtns.prepend(btn1)
-            appVideoBtns.append(btn2)
-            videosContainer.appendChild(div)
-        }
+        if (!document.getElementById(divId))
+            handleUserJoined(user)
         user.videoTrack.play(vidId)
     }
     else if (mediaType === 'audio') {
@@ -278,7 +295,6 @@ function changeAppVideoBtnBg(elem) {
         elem.classList.add("bg-dark")
     }
 }
-
 async function muteLocalTrack(elem, trackName, type) {
     try {
         if (localTracks[trackName]) {
@@ -303,7 +319,6 @@ async function muteLocalTrack(elem, trackName, type) {
         elem.disabled = false
     }
 }
-
 async function muteTrack(elem, trackName, type, user, vidId) {
     try {
         if (user[trackName]) {
@@ -325,14 +340,12 @@ async function muteTrack(elem, trackName, type, user, vidId) {
         elem.disabled = false
     }
 }
-
 function onLocalAppVideoItemBtnClick(trackName, type, event) {
     event.stopPropagation()
     const elem = event.currentTarget
     elem.disabled = true
     muteLocalTrack(elem, trackName, type)
 }
-
 function onAppVideoItemBtnClick(trackName, type, user, vidId, event) {
     event.stopPropagation()
     const elem = event.currentTarget
@@ -340,3 +353,14 @@ function onAppVideoItemBtnClick(trackName, type, user, vidId, event) {
     muteTrack(elem, trackName, type, user, vidId)
 }
 
+socket.on("handRaiseReq", (socketId, userName) => {
+    if (confirm(`${userName} is requesting to become co-host.`))
+        socket.emit("handRaiseAcc", socketId)
+    else
+        socket.emit("handRaiseRej", socketId)
+})
+socket.on("handRaiseNotAllow", () => alert("Hand raise request rejected"))
+socket.on("handRaiseAllow", () => {
+    clientRole = CLIENT_ROLES.host
+    publishLocalTracks()
+})

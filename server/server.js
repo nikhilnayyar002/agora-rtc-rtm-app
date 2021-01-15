@@ -20,8 +20,6 @@ const roomNameToUniqueChannelMapObj = {}
 const channels = {}
 const endedChannels = {}
 
-/** { [socketId] : string } */
-const socketIdToUserDataMapObj = {}
 
 /***************************************************************************************/
 
@@ -49,9 +47,10 @@ function updateUserTimePeriod(channelName, userRecord) {
     userRecord.lastJoined = null
 }
 
-function onUserLeft(socketId) {
+function onUserLeft(socket) {
     // get channelName joined by this socket
-    const userData = socketIdToUserDataMapObj[socketId]
+    const socketId = socket.id
+    const userData = socketId.userData
 
     if (userData) {
         const channelName = userData.channelName
@@ -60,15 +59,15 @@ function onUserLeft(socketId) {
         if (channels[channelName]) {
             const userId = userData.userId
             const userRecord = channels[channelName].usersRecord[userId]
-            
+
             updateUserTimePeriod(channelName, userRecord)
             updateUserList(channelName, userId, false)
         }
-
-        // delete the channelName joined by this socket
-        delete socketIdToUserDataMapObj[socketId]
+        // delete socketId.userData
     }
 }
+
+function isChannelLive(channelName) { return channelName && !channels[channelName].endedAt }
 
 /************************************************** serve static assets and index.html */
 
@@ -85,12 +84,7 @@ app.get('/api/channel_status/:roomName', (req, res) => {
     const roomName = req.params["roomName"]
     const channelName = roomNameToUniqueChannelMapObj[roomName]
 
-    if (channelName && !channels[channelName].endedAt)
-        //channel is live
-        res.json(genSuccResObj(channelName))
-    else
-        //channel is not live
-        res.json(genErrResObj())
+    isChannelLive(channelName) ? res.json(genSuccResObj(channelName)) : res.json(genErrResObj())
 })
 
 /**
@@ -109,7 +103,7 @@ app.post('/api/start_session', (req, res) => {
             channelName,
             roomName,
             usersRecord: {},
-            mainHost: { userId, userName },
+            mainHost: { userId, userName, socketId: null },
             usersList: [],
             startedAt: getCurrTimeInSeconds(),
             endedAt: null
@@ -184,7 +178,7 @@ io.on('connection', (socket) => {
     socket.on('subscribe', (channelName, userId, userName) => {
         try {
             // if channel is not live dont do anything
-            if (!channels[channelName] || channels[channelName].endedAt) return
+            if (!isChannelLive(channelName)) return
 
             // join channel
             socket.join(channelName)
@@ -203,16 +197,30 @@ io.on('connection', (socket) => {
 
             updateUserList(channelName, { userId, userName })
 
-            // map this socket id to channelName
-            socketIdToUserDataMapObj[socket.id] = { channelName, userId }
+            // store user ref details
+            socket.userData = { channelName, userId }
+
+            // set the socket id of main host 
+            if (channels[channelName].mainHost.userId === userId)
+                channels[channelName].mainHost.socketId = socket.id
+
         } catch (err) {
             console.log("Error occurred in ws:subscribe event.", err)
         }
     })
 
+    socket.on("handRaise", (channelName, userName) => {
+        if (isChannelLive(channelName)) {
+            const mainHostSocketId = channels[channelName].mainHost.socketId
+            socket.to(mainHostSocketId).emit("handRaiseReq", socket.id, userName);
+        }
+    })
+    socket.on("handRaiseAcc", socketId => socket.to(socketId).emit("handRaiseAllow"))
+    socket.on("handRaiseRej", socketId => socket.to(socketId).emit("handRaiseNotAllow"))
+
     socket.on('unsubscribe', () => {
         try {
-            onUserLeft(socket.id)
+            onUserLeft(socket)
         } catch (err) {
             console.log("Error occurred in ws:unsubscribe event.", err)
         }
@@ -220,7 +228,7 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         try {
-            onUserLeft(socket.id)
+            onUserLeft(socket)
         } catch (err) {
             console.log("Error occurred in ws:disconnect event.", err)
         }
