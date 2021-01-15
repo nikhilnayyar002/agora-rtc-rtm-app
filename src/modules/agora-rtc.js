@@ -50,6 +50,9 @@ document.getElementById("copyShareLink").onclick = () => {
     alert("Link Copied !")
 }
 
+document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
+document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
+
 socket.on("connect", () => {
     if (channelName)
         socket.emit("subscribe", channelName, getUserId(), getLocalUserName())
@@ -227,21 +230,27 @@ async function subscribe(user, mediaType) {
             div.className = "appVideoItem bg-dark border-end"
             div.id = divId
             div.onclick = onAppVideoItemClick
+
+            const btn1 = document.createElement("button")
+            const btn2 = document.createElement("button")
+            btn1.className = btn2.className = "bg-dark border p-2 rounded-circle"
+            btn1.innerHTML = `<img class="w-100 h-100" src=${MuteAudioIcon} alt="">`
+            btn2.innerHTML = `<img class="w-100 h-100" src=${MuteVideoIcon} alt="">`
+            btn1.onclick = onAppVideoItemBtnClick.bind(null, "audioTrack", "audio", user, vidId)
+            btn2.onclick = onAppVideoItemBtnClick.bind(null, "videoTrack", "video", user, vidId)
+
             div.innerHTML = `
                 <div id="${vidId}" class="w-100 h-100"></div>
                 <div class="d-flex bottom-0 p-2 position-absolute w-100 align-items-center">
                     <div class="appVideoText text-truncate text-white pe-3">${decodeUserIdName(user.uid)}</div>
                     <div class="d-flex appVideoBtns">
-                        <button id="mute-local-mic" class="bg-dark border p-2 rounded-circle">
-                            <img class="w-100 h-100" src=${MuteAudioIcon} alt="">
-                        </button>
-                        <div class="p-1"></div>
-                        <button id="mute-local-video" class="bg-dark border p-2 rounded-circle">
-                            <img class="w-100 h-100" src=${MuteVideoIcon} alt="">
-                        </button>
+                    <div class="p-1"></div>
                     </div>
                 </div>
             `
+            const appVideoBtns = div.getElementsByClassName("appVideoBtns")[0]
+            appVideoBtns.prepend(btn1)
+            appVideoBtns.append(btn2)
             videosContainer.appendChild(div)
         }
         user.videoTrack.play(vidId)
@@ -295,6 +304,28 @@ async function muteLocalTrack(elem, trackName, type) {
     }
 }
 
+async function muteTrack(elem, trackName, type, user, vidId) {
+    try {
+        if (user[trackName]) {
+            await client.unsubscribe(user, type)
+            if (type === "video")
+                document.getElementById(vidId).innerHTML = ""
+        }
+        else {
+            await client.subscribe(user, type)
+            if (type === "video")
+                user[trackName].play(vidId)
+            else
+                user[trackName].play()
+        }
+        changeAppVideoBtnBg(elem)
+    } catch (err) {
+        console.log(err)
+    } finally {
+        elem.disabled = false
+    }
+}
+
 function onLocalAppVideoItemBtnClick(trackName, type, event) {
     event.stopPropagation()
     const elem = event.currentTarget
@@ -302,5 +333,10 @@ function onLocalAppVideoItemBtnClick(trackName, type, event) {
     muteLocalTrack(elem, trackName, type)
 }
 
-document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
-document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
+function onAppVideoItemBtnClick(trackName, type, user, vidId, event) {
+    event.stopPropagation()
+    const elem = event.currentTarget
+    elem.disabled = true
+    muteTrack(elem, trackName, type, user, vidId)
+}
+
