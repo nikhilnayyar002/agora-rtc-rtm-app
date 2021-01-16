@@ -139,7 +139,7 @@ app.get('/api/end_session/:roomName', (req, res) => {
             /** move channel data to ended channel list and clear it from current list */
             endedChannels[channelName] = channelData
 
-            res.json(genSuccResObj(channelName))
+            res.json(genSuccResObj(endedChannels[channelName]))
         }
         else
             res.json(genErrResObj())

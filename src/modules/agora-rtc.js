@@ -122,6 +122,7 @@ function onSubmit() {
             leaveBtn.disabled = false
         } catch (error) {
             console.error(error)
+            if (typeof error === "string") alert(error)
             joinBtn.disabled = false
         }
     })();
@@ -133,9 +134,13 @@ async function leave() {
     if (isSessionInitiator) {
         // end the channel on backend
         const res = await endSession(options.roomName)
-        console.log(res && res.data) // log name of channel that ended
-        if (isSessionInitiator && !res) {
+        console.log(res && res.data) // log ended channel data
+        if (!res) {
             leaveBtn.disabled = false
+            return // network error occurred. Dont do anything.
+        } else if (!res.status) {
+            leaveBtn.disabled = false
+            alert("Channel is not live!")
             return // network error occurred. Dont do anything.
         }
     }
@@ -171,14 +176,14 @@ async function join() {
         //audience must check if channel is live
         res = await isChannelLive(options.roomName)
         if (!res)
-            return //"network error"
+            throw null //"network error"
         else if (!res.status)
             throw "Channel is not live!"
     } else {
         // make the channel live
         res = await startSession(options.roomName, getUserId(), getLocalUserName())
         if (!res)
-            throw "Failed to start Live Session. Please try again" //"network error"
+            throw null //"network error"
     }
     channelName = res.data
 
