@@ -27,11 +27,11 @@ const o2 = merge(o1, {
                 target: serverDomain,
             },
         },
-        stats: {
-            preset: 'none',
-            errors: true,
-            warnings: true
-        },
+        // stats: {
+        //     preset: 'none',
+        //     errors: true,
+        //     warnings: true
+        // },
     },
 })
 
