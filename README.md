@@ -21,7 +21,11 @@ In case for client (**Hot Reload + Build**) / **Build** the client build will be
     ```
     npm ci
     ```
-* **Enable Eslint in vscode**
+* create ```.env.local``` file and add the following variables:
+    ```
+    APP_ID=XXXXXXXXXX
+    ```    
+* **Enable Eslint in vscode for visual errors & warnings (optional)**
 
     VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint
 
