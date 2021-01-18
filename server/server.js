@@ -208,10 +208,10 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on("handRaise", (channelName, userName) => {
+    socket.on("handRaise", (channelName, userName, userId) => {
         if (isChannelLive(channelName)) {
             const mainHostSocketId = channels[channelName].mainHost.socketId
-            socket.to(mainHostSocketId).emit("handRaiseReq", socket.id, userName);
+            socket.to(mainHostSocketId).emit("handRaiseReq", socket.id, userName, userId);
         }
     })
     socket.on("handRaiseAcc", socketId => socket.to(socketId).emit("handRaiseAllow"))

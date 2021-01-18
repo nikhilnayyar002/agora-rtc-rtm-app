@@ -50,12 +50,20 @@
       </div>
       <div id="appParticipant" class="col p-3 overflow-auto">
       </div>
-      <div id="appChat" class="col p-3 row g-0 flex-column flex-nowrap overflow-auto">
+      <div id="appChat" class="col p-3 row g-0 flex-column flex-nowrap overflow-auto position-relative">
         <div id="appChatMessages" class="col overflow-auto">
         </div>
         <div class="border-top col-auto d-flex flex-nowrap pt-3">
-          <input id="messageInput"  style="width: auto; flex: 1 1 0;" class="form-control" type="text" placeholder="Message..">
-          <button id="sendMessage" style="width: auto; flex: 0 0 auto;" type="button" class="btn btn-sm btn-primary">Send</button>
+          <input id="messageInput" style="width: auto; flex: 1 1 0;" class="form-control" type="text"
+            placeholder="Message..">
+          <button id="sendMessage" style="width: auto; flex: 0 0 auto;" type="button"
+            class="btn btn-sm btn-primary">Send</button>
+        </div>
+        <div id="rtmErrorBoxCont" class="position-absolute top-0 start-0 bottom-0 end-0 bg-white">
+          <div class="align-items-center d-flex flex-column h-100 justify-content-center pb-5">
+            <p id="rtmErrorReason"></p>
+            <button disabled id="rtmRetrySetup" type="button" class="btn btn-sm btn-primary">Retry</button>
+          </div>
         </div>
       </div>
     </div>

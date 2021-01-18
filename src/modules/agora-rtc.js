@@ -58,7 +58,7 @@ raiseHandBtn.onclick = () => {
     if (clientRole === CLIENT_ROLES.host)
         publishLocalTracks()
     else if (channelName)
-        socket.emit("handRaise", channelName, getLocalUserName())
+        socket.emit("handRaise", channelName, getLocalUserName(), getUserId())
 }
 
 socket.on("connect", () => {
@@ -69,8 +69,43 @@ socket.on("connect", () => {
 socket.on("channelInActive", () => alert("channel is not live."))
 socket.on("onlineUsers", data => {
     let str = ""
-    data.forEach(userData => str += `<p class="bg-light border mb-2 p-2 text-truncate">${userData.userName}</p>`)
+    data.forEach(userData => str += `
+        <div id="onlineUser${userData.userId}" class="bg-light border mb-2 p-2">
+            <p class="mb-0 text-truncate">${userData.userName}</p>
+        </div>
+    `)
     appParticipant.innerHTML = str
+})
+
+socket.on("handRaiseReq", (socketId, userName, userId) => {
+    console.log(`${userName} is requesting to become co-host.`)
+
+    let onlineUser = document.getElementById(`onlineUser${userId}`)
+
+    if (onlineUser) {
+        onlineUser.insertAdjacentHTML("beforeend", `
+            <div class="mt-2">
+                <button data="accept" type="button" class="btn btn-sm btn-primary px-3 me-2">Yes</button>
+                <button data="reject" type="button" class="btn btn-sm btn-primary px-3">No</button>
+            </div>
+        `)
+        onlineUser.lastElementChild.onclick = e => {
+            const data = e.target.getAttribute("data")
+            if (data) {
+                if (data === "accept")
+                    socket.emit("handRaiseAcc", socketId)
+                else
+                    socket.emit("handRaiseRej", socketId)
+                e.currentTarget.remove()
+            }
+        }
+    }
+})
+
+socket.on("handRaiseNotAllow", () => alert("Hand raise request rejected"))
+socket.on("handRaiseAllow", () => {
+    clientRole = CLIENT_ROLES.host
+    publishLocalTracks()
 })
 
 /***************************************************************************************************************************************************************/
@@ -117,7 +152,7 @@ function onSubmit() {
     (async () => {
         try {
             await join()
-            await setupRTM(channelName)
+            setupRTM(channelName)
             joinFormModal.hide()
             leaveBtn.disabled = false
         } catch (error) {
@@ -358,15 +393,3 @@ function onAppVideoItemBtnClick(trackName, type, user, vidId, event) {
     elem.disabled = true
     muteTrack(elem, trackName, type, user, vidId)
 }
-
-socket.on("handRaiseReq", (socketId, userName) => {
-    if (confirm(`${userName} is requesting to become co-host.`))
-        socket.emit("handRaiseAcc", socketId)
-    else
-        socket.emit("handRaiseRej", socketId)
-})
-socket.on("handRaiseNotAllow", () => alert("Hand raise request rejected"))
-socket.on("handRaiseAllow", () => {
-    clientRole = CLIENT_ROLES.host
-    publishLocalTracks()
-})

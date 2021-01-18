@@ -19,6 +19,11 @@ export const raiseHandBtn = document.getElementById("raiseHand")
 export const sendMessageBtn = document.getElementById("sendMessage")
 export const messageInput = document.getElementById("messageInput")
 
+export const rtmErrorBoxCont = document.getElementById("rtmErrorBoxCont")
+export const rtmErrorReason = document.getElementById("rtmErrorReason")
+export const rtmRetrySetup = document.getElementById("rtmRetrySetup")
+
+
 // bootstrap modal
 export const joinFormModal = new Modal(document.getElementById('joinFormModal'), {
     keyboard: false,
