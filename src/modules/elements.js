@@ -35,3 +35,5 @@ let userId = null
 export const setUserId = val => userId = val
 export const getUserId = () => userId
 export const getLocalUserName = () => decodeUserIdName(getUserId())
+export const setClientRole = role => localStorage.setItem(`clientRole${getUserId()}`, role)
+export const getClientRole = () => localStorage.getItem(`clientRole${getUserId()}`)

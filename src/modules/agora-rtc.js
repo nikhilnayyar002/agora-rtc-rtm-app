@@ -3,7 +3,7 @@ import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } f
 import {
     appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal,
     joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant,
-    bigScreenVideoCont, raiseHandBtn
+    bigScreenVideoCont, raiseHandBtn, setClientRole, getClientRole
 } from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
@@ -19,9 +19,6 @@ const localTracks = { videoTrack: null, audioTrack: null }
 
 /** remote users */
 let remoteHosts = {}
-
-/** client role */
-let clientRole = CLIENT_ROLES.audience
 
 /** options passed on joining channel */
 let options = { appid: null, roomName: null, token: null }
@@ -55,7 +52,7 @@ document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bi
 document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
 
 raiseHandBtn.onclick = () => {
-    if (clientRole === CLIENT_ROLES.host)
+    if (getClientRole() === CLIENT_ROLES.host)
         publishLocalTracks()
     else if (channelName)
         socket.emit("handRaise", channelName, getLocalUserName(), getUserId())
@@ -104,7 +101,7 @@ socket.on("handRaiseReq", (socketId, userName, userId) => {
 
 socket.on("handRaiseNotAllow", () => alert("Hand raise request rejected"))
 socket.on("handRaiseAllow", () => {
-    clientRole = CLIENT_ROLES.host
+    setClientRole(CLIENT_ROLES.host)
     publishLocalTracks()
 })
 
@@ -134,10 +131,8 @@ async function onInit() {
         raiseHandBtn.style.display = "inline-block"
     }
     else
-      /** since there is no token then one can become host and share joining link afterward to audience */ {
-        clientRole = CLIENT_ROLES.host
+        /** since there is no token then one can become host and share joining link afterward to audience */
         isSessionInitiator = true
-    }
 
     joinFormModal.show()
 }
@@ -214,11 +209,13 @@ async function join() {
             throw null //"network error"
         else if (!res.status)
             throw "Channel is not live!"
+        setClientRole(CLIENT_ROLES.audience)
     } else {
         // make the channel live
         res = await startSession(options.roomName, getUserId(), getLocalUserName())
         if (!res)
             throw null //"network error"
+        setClientRole(CLIENT_ROLES.host)
     }
     channelName = res.data
 
@@ -230,7 +227,7 @@ async function join() {
     // join the channel
     await client.join(options.appid, channelName, options.token, getUserId())
 
-    if (clientRole === CLIENT_ROLES.host)
+    if (getClientRole() === CLIENT_ROLES.host)
         await publishLocalTracks()
 
     // join the channel on backend
