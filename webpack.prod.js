@@ -3,6 +3,7 @@ const TerserPlugin = require("terser-webpack-plugin")
 const { mergeWithRules, merge } = require('webpack-merge')
 const common = require('./webpack.common')
 const { use_options_rule, use_rule } = require('./webpack.rules')
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 
 const o1 = mergeWithRules(use_options_rule)(common, {
     module: {
@@ -37,6 +38,7 @@ const o3 = merge(o2, {
             new TerserPlugin({
                 extractComments: false,
             }),
+            new CssMinimizerPlugin()
         ],
         moduleIds: 'deterministic',
         runtimeChunk: 'single',
