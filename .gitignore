@@ -2,3 +2,4 @@ dist
 node_modules
 *.http
 .env.local
+compilation-stats.json

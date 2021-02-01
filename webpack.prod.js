@@ -49,12 +49,13 @@ const o3 = merge(o2, {
                     name: 'vendors',
                     chunks: 'all',
                 },
-                styles: {
-                    name: 'styles',
-                    test: /\.css$/,
-                    chunks: 'all',
-                    enforce: true,
-                },
+                
+                // styles: {
+                //     name: 'styles',
+                //     test: /\.css$/,
+                //     chunks: 'all',
+                //     enforce: true,
+                // },
             },
         },
     },

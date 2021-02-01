@@ -32,7 +32,7 @@ module.exports = {
     output: {
         path: `${__dirname}/dist`,
         filename: '[name].[contenthash].js',
-        publicPath: '',
+        publicPath: '/',
     },
     plugins: [
         new CleanWebpackPlugin(),

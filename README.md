@@ -21,7 +21,7 @@ In case for client (**Hot Reload + Build**) / **Build** the client build will be
     ```
     npm ci
     ```
-* create ```.env.local``` file and add the following variables:
+* **create** ```.env.local``` file and add the following variables:
     ```
     APP_ID=XXXXXXXXXX
     ```    
@@ -56,3 +56,13 @@ In case for client (**Hot Reload + Build**) / **Build** the client build will be
     ```
     npm run build
     ```
+
+## Stats
+
+
+* **Generate stats:** a file named ``compilation-stats.json`` will be generated in root folder.
+
+    ```
+    npm run stats
+    ```
+* **Upload the stats:** [webpack-chart](https://alexkuz.github.io/webpack-chart/)
