@@ -1,5 +1,7 @@
 # Agora Live + RTM (Custom)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 ## Environment Variables (defined in ```.env``` file)
 
 * ```SERVER_PORT```
