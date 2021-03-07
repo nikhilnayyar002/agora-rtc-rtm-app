@@ -208,14 +208,14 @@ io.on('connection', (socket) => {
         }
     })
 
-    socket.on("handRaise", (channelName, userName, userId) => {
+    socket.on("becomeHost", (channelName, userName, userId) => {
         if (isChannelLive(channelName)) {
             const mainHostSocketId = channels[channelName].mainHost.socketId
-            socket.to(mainHostSocketId).emit("handRaiseReq", socket.id, userName, userId);
+            socket.to(mainHostSocketId).emit("becomeHostReq", socket.id, userName, userId);
         }
     })
-    socket.on("handRaiseAcc", socketId => socket.to(socketId).emit("handRaiseAllow"))
-    socket.on("handRaiseRej", socketId => socket.to(socketId).emit("handRaiseNotAllow"))
+    socket.on("becomeHostAcc", socketId => socket.to(socketId).emit("becomeHostAllow"))
+    socket.on("becomeHostRej", socketId => socket.to(socketId).emit("becomeHostNotAllow"))
 
     socket.on('unsubscribe', () => {
         try {

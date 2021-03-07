@@ -3,7 +3,7 @@ import { CLIENT_ROLES, copyTextToClipboard, decodeUserIdName, generateUserId } f
 import {
     appIdInp, roomNameInp, joinForm, leaveBtn, localVideoItem, tokenInp, joinFormModal,
     joinBtn, fullNmInp, localVideoItemText, videosContainer, setUserId, getUserId, getLocalUserName, appParticipant,
-    bigScreenVideoCont, raiseHandBtn, setClientRole, getClientRole
+    bigScreenVideoCont, becomeHostBtn, setClientRole, getClientRole
 } from "./elements"
 import { endSession, isChannelLive, startSession } from './apis';
 import { socket } from './socket';
@@ -51,11 +51,11 @@ document.getElementById("copyShareLink").onclick = () => {
 document.getElementById("muteLocalMic").onclick = onLocalAppVideoItemBtnClick.bind(null, "audioTrack", "audio")
 document.getElementById("muteLocalVideo").onclick = onLocalAppVideoItemBtnClick.bind(null, "videoTrack", "video")
 
-raiseHandBtn.onclick = () => {
+becomeHostBtn.onclick = () => {
     if (getClientRole() === CLIENT_ROLES.host)
         publishLocalTracks()
     else if (channelName)
-        socket.emit("handRaise", channelName, getLocalUserName(), getUserId())
+        socket.emit("becomeHost", channelName, getLocalUserName(), getUserId())
 }
 
 socket.on("connect", () => {
@@ -74,7 +74,7 @@ socket.on("onlineUsers", data => {
     appParticipant.innerHTML = str
 })
 
-socket.on("handRaiseReq", (socketId, userName, userId) => {
+socket.on("becomeHostReq", (socketId, userName, userId) => {
     console.log(`${userName} is requesting to become co-host.`)
 
     let onlineUser = document.getElementById(`onlineUser${userId}`)
@@ -90,17 +90,17 @@ socket.on("handRaiseReq", (socketId, userName, userId) => {
             const data = e.target.getAttribute("data")
             if (data) {
                 if (data === "accept")
-                    socket.emit("handRaiseAcc", socketId)
+                    socket.emit("becomeHostAcc", socketId)
                 else
-                    socket.emit("handRaiseRej", socketId)
+                    socket.emit("becomeHostRej", socketId)
                 e.currentTarget.remove()
             }
         }
     }
 })
 
-socket.on("handRaiseNotAllow", () => alert("Hand raise request rejected"))
-socket.on("handRaiseAllow", () => {
+socket.on("becomeHostNotAllow", () => alert("Request to become host rejected"))
+socket.on("becomeHostAllow", () => {
     setClientRole(CLIENT_ROLES.host)
     publishLocalTracks()
 })
@@ -127,8 +127,8 @@ async function onInit() {
             // onSubmit()
         }
 
-        // display raise hand button
-        raiseHandBtn.style.display = "inline-block"
+        // display Become Host button
+        becomeHostBtn.style.display = "inline-block"
     }
     else
         /** since there is no token then one can become host and share joining link afterward to audience */
@@ -248,7 +248,7 @@ async function publishLocalTracks() {
     // publish local tracks to channel
     await client.publish(Object.values(localTracks))
 
-    raiseHandBtn.disabled = true
+    becomeHostBtn.disabled = true
 }
 
 function handleUserLeft(user) {

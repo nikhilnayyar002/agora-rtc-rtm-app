@@ -68,3 +68,20 @@ In case for client (**Hot Reload + Build**) / **Build** the client build will be
     npm run stats
     ```
 * **Upload the stats:** [webpack-chart](https://alexkuz.github.io/webpack-chart/)
+
+
+## Application
+
+### Be a host and start meeting
+
+* Fill up the form.
+* Click on share button below and share the url copied to clipboard to your friends.
+* Note that in order for them to join your meeting they must use the URL you sent to them.
+* Once they joined they can see you as a host and they will be audience.
+* In order to become a co-host (similar to host) an audience user can click Become Host button. Once the host accept the request, that user will become co-host.
+
+### Get the report of time period for each audience user
+
+```
+GET /api/channel_report/:channelName
+```
